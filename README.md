@@ -1,7 +1,7 @@
 # Suspicious Activity Monitor
 
 Suspicious Activity Monitor is a team project built to detect potentially suspicious financial transactions.  
-The system screens transactions using configurable rules, checks customers against watchlists, creates alerts, and supports case investigation management. :contentReference[oaicite:2]{index=2}
+The system screens transactions using configurable rules, checks customers against watchlists, creates alerts, and supports case investigation management.
 
 ## Tech Stack
 
