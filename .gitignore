@@ -1,0 +1,88 @@
+# =========================
+# IDE
+# =========================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Build folders
+# =========================
+target/
+build/
+out/
+
+# =========================
+# Java / JVM
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+log/
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+*.env
+application-local.yml
+application-local.yaml
+application-local.properties
+application-secret.yml
+application-secret.yaml
+application-secret.properties
+
+# =========================
+# Spring Boot
+# =========================
+.springBeans
+.springToolSuite4-cache/
+
+# =========================
+# Maven
+# =========================
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# =========================
+# Gradle
+# =========================
+.gradle/
+
+# =========================
+# Temporary files
+# =========================
+*.swp
+*.swo
+*~
+tmp/
+temp/
+
+# =========================
+# Test / coverage
+# =========================
+coverage/
+jacoco.exec
+
+# =========================
+# Generated files
+# =========================
+generated/
