@@ -21,7 +21,6 @@ The system screens transactions using configurable rules, checks customers again
 - Match customers against watchlists
 - Create and manage alerts
 - Open and update investigation cases
-- Expose REST API endpoints for alerts, cases, transactions, and watchlist search :contentReference[oaicite:3]{index=3}
 
 ## Project Structure
 
@@ -48,7 +47,7 @@ The system screens transactions using configurable rules, checks customers again
 - `POST /api/cases`
 - `GET /api/cases/{id}`
 - `POST /api/cases/{id}/notes`
-- `GET /api/watchlist/search?name={name}` :contentReference[oaicite:4]{index=4}
+- `GET /api/watchlist/search?name={name}`
 
 ## Database
 
