@@ -1,4 +1,6 @@
 #!/bin/bash
+
+
 set -e
 
 DB_NAME="${DB_NAME:-sam_db}"
