@@ -56,10 +56,15 @@ The project includes core entities such as:
 - Customer
 - Account
 - Transaction
-- WatchlistEntry
+- Watchlist
+- WatchlistMatch
 - AlertRule
 - Alert
-- Case
+- Investigation
+
+## E/R Diagram
+
+![img.png](ERDiagram.png)
 
 ## Team
 
