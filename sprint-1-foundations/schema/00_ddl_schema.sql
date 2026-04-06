@@ -34,7 +34,7 @@ CREATE TABLE customer (
 -- ── account ───────────────────────────────────────────────
 CREATE TABLE account (
     account_id          INT             PRIMARY KEY,
-    account_number      VARCHAR(20)     NOT NULL UNIQUE,
+    account_number      VARCHAR(40)     NOT NULL UNIQUE,
     customer_id         INT             NOT NULL,
     account_type        VARCHAR(20)     NOT NULL,          -- CURRENT / SAVINGS / TRADING / CUSTODY / CORRESPONDENT
     currency            CHAR(3)         NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE alert_rule (
     description         VARCHAR(255)    NOT NULL,
     threshold_amount    DECIMAL(18,2),                     -- USD threshold if applicable
     threshold_count     INT,                               -- transaction count if applicable
-    lookback_days       INT             NOT NULL DEFAULT 30,
+    lookback_days       INT             DEFAULT 30,
     severity            VARCHAR(10)     NOT NULL,          -- LOW / MEDIUM / HIGH / CRITICAL
     is_active           BOOLEAN         NOT NULL DEFAULT TRUE
 );
