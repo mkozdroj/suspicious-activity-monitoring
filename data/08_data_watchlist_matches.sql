@@ -30,10 +30,10 @@ VALUES
     (11, 8, 8, 'NAME', 95.0, 'customer_name', 'Greenleaf Trust Company', 'CONFIRMED', 'aml.analyst2@hsbc.com', '2026-03-13 10:45:00'),
     (12, 9, 18, 'NAME', 88.0, 'counterparty_bank', 'Sberbank Russia', 'CONFIRMED', 'aml.analyst2@hsbc.com', '2026-03-13 15:00:00'),
     (13, 20, 6, 'FUZZY_NAME', 89.0, 'customer_name', 'Viktor Sokolov', 'CONFIRMED', 'aml.analyst2@hsbc.com', '2026-03-25 11:00:00'),
-    (14, 1, NULL, 'FUZZY_NAME', 42.0, 'customer_name', 'James Thorton', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-05 10:00:00'),
-    (15, 10, NULL, 'NAME', 35.0, 'customer_name', 'Meridian Trad Ltd', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-15 11:00:00'),
+    (14, 1, 11, 'FUZZY_NAME', 42.0, 'customer_name', 'James Thorton', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-05 10:00:00'),
+    (15, 10, 7, 'NAME', 35.0, 'customer_name', 'Meridian Trad Ltd', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-15 11:00:00'),
     (16, 17, 19, 'FUZZY_NAME', 72.0, 'counterparty_name', 'Liu Wei', 'PENDING', NULL, NULL),
-    (17, 3, NULL, 'FUZZY_NAME', 38.0, 'customer_name', 'James Thornton', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-10 09:00:00'),
+    (17, 3, 9, 'FUZZY_NAME', 38.0, 'customer_name', 'James Thornton', 'FALSE_POSITIVE', 'aml.analyst1@hsbc.com', '2026-03-10 09:00:00'),
     (18, 7, 8, 'ACCOUNT', 78.0, 'counterparty_account', 'KY98765432109', 'CONFIRMED', 'aml.analyst1@hsbc.com', '2026-03-13 09:00:00'),
     (19, 12, 20, 'FUZZY_NAME', 65.0, 'counterparty_country', 'IR', 'PENDING', NULL, NULL),
     (20, 18, 4, 'COUNTRY', 90.0, 'counterparty_country', 'SY', 'CONFIRMED', 'aml.senior@hsbc.com', '2026-03-21 16:10:00');
