@@ -1,9 +1,11 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../.env"
 
 set -e
 
-DB_NAME="${DB_NAME:-sam_db}"
+DB_NAME="${DB_NAME:-sam}"
 DB_USER="${DB_USER:-root}"
 DB_PASSWORD="${DB_PASSWORD:-root}"
 DB_HOST="${DB_HOST:-localhost}"
