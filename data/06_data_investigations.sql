@@ -34,6 +34,6 @@ VALUES
     (15, 'INV-2026-015', 6, 4, 'aml.analyst2@hsbc.com', '2026-03-25 10:00:00', NULL, NULL, 'MEDIUM', 'Third large inbound wire from UAE for Viktor Sokolov. Reviewing source of funds — customer claims real estate sales.'),
     (16, 'INV-2026-016', 5, 10, 'aml.analyst2@hsbc.com', '2026-03-13 11:30:00', NULL, NULL, 'MEDIUM', 'Greenleaf Trust Company Cayman Islands — KYC expired. Requesting UBO documentation and re-verification.'),
     (17, 'INV-2026-017', 18, 16, 'aml.analyst1@hsbc.com', '2026-03-21 16:15:00', NULL, NULL, 'MEDIUM', 'Atlas Charitable Foundation flagged for rapid offshore transfer. Reviewing grant disbursement approvals.'),
-    (18, 'INV-2026-018', 20, 9, 'aml.senior@hsbc.com', '2026-03-13 11:00:00', NULL, NULL, 'HIGH', 'Trust wire to Russia escalated. Account under enhanced monitoring pending beneficial ownership disclosure.'),
+    (18, 'INV-2026-018', 17, 9, 'aml.senior@hsbc.com', '2026-03-13 11:00:00', NULL, NULL, 'HIGH', 'Trust wire to Russia escalated. Account under enhanced monitoring pending beneficial ownership disclosure.'),
     (19, 'INV-2026-019', 11, 19, 'aml.analyst1@hsbc.com', '2026-03-22 13:00:00', NULL, NULL, 'LOW', 'Single cash deposit £9,200. Reviewing for structuring pattern — no prior alerts. Customer is regular salaried employee.'),
     (20, 'INV-2026-020', 13, 3, 'aml.analyst1@hsbc.com', '2026-03-20 10:00:00', NULL, NULL, 'MEDIUM', 'Meridian Trading Ltd dormant 6 months then £95K payroll run. Reviewing business accounts and board resolutions.');
