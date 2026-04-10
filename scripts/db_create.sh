@@ -3,16 +3,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-if [ -f "$SCRIPT_DIR/../../.env" ]; then
-  source "$SCRIPT_DIR/../../.env"
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+  source "$SCRIPT_DIR/../.env"
 else
-  echo "Error: .env file not found at $SCRIPT_DIR/../../.env"
+  echo "Error: .env file not found at $SCRIPT_DIR/../.env"
   exit 1
 fi
 
 SCHEMA_DIR="$SCRIPT_DIR/../schema"
-DATA_DIR="$SCRIPT_DIR/../../data"
+DATA_DIR="$SCRIPT_DIR/../data"
 PROC_DIR="$SCHEMA_DIR/stored_procedures"
 VIEWS_DIR="$SCHEMA_DIR/views"
 TABLE_DIR="$SCHEMA_DIR/tables"
