@@ -64,7 +64,7 @@ The project includes core entities such as:
 
 ## E/R Diagram
 
-![img.png](sprint-1-foundations/schema/diagram.png)
+![img.png](schema/diagram.png)
 
 ## Team
 
