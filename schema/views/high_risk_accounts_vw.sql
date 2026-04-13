@@ -14,10 +14,10 @@ SELECT DISTINCT
     a.triggered_at AS alert_date
 
 FROM customer c
-JOIN transaction t
+JOIN txn t
     ON c.customer_id = t.account_id
 JOIN alert a
-    ON t.transaction_id = a.transaction_id
+    ON t.txn_id = a.txn_id
 
 WHERE c.risk_rating = 'High'
   AND a.triggered_at >= CURRENT_DATE - INTERVAL 30 DAY;

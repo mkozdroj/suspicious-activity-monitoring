@@ -7,14 +7,14 @@ SELECT
 
 
     -- Transaction details
-    t.transaction_id,
-    t.transaction_ref,
+    t.txn_id,
+    t.txn_ref,
     t.amount,
     t.currency,
     t.amount_usd,
-    t.transaction_date,
+    t.txn_date,
     t.counterparty_country,
-    t.transaction_type,
+    t.txn_type,
     t.direction,
 
     -- Customer details
@@ -31,8 +31,8 @@ SELECT
     c.is_active
 
 FROM alert a
-JOIN transaction t
-    ON a.transaction_id = t.transaction_id
+JOIN txn t
+    ON a.txn_id = t.txn_id
 JOIN customer c
     ON t.account_id = c.customer_id
 
