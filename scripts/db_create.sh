@@ -4,15 +4,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -f "$SCRIPT_DIR/../.env" ]; then
-  source "$SCRIPT_DIR/../.env"
+if [ -f "$SCRIPT_DIR/../../.env" ]; then
+  source "$SCRIPT_DIR/../../.env"
 else
-  echo "Error: .env file not found at $SCRIPT_DIR/../.env"
+  echo "Error: .env file not found at $SCRIPT_DIR/../../.env"
   exit 1
 fi
 
 SCHEMA_DIR="$SCRIPT_DIR/../schema"
-DATA_DIR="$SCRIPT_DIR/../data"
+DATA_DIR="$SCRIPT_DIR/../../data"
 PROC_DIR="$SCHEMA_DIR/stored_procedures"
 VIEWS_DIR="$SCHEMA_DIR/views"
 TABLE_DIR="$SCHEMA_DIR/tables"
@@ -74,7 +74,7 @@ echo "Loading schema and data files..."
 run_sql_files "$DB_NAME" \
   "$TABLE_DIR/customer.sql" \
   "$TABLE_DIR/account.sql" \
-  "$TABLE_DIR/txn.sql" \
+  "$TABLE_DIR/transaction.sql" \
   "$TABLE_DIR/alert_rule.sql" \
   "$TABLE_DIR/alert.sql" \
   "$TABLE_DIR/investigation.sql" \
