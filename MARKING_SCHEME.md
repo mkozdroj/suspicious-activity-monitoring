@@ -23,9 +23,9 @@
 
 | Criterion | Excellent | Good | Satisfactory | Needs Improvement |
 |-----------|-----------|------|--------------|-------------------|
-| **Entity Modeling & Relationships** | All 8 entities correctly designed (customer, account, transaction, alert_rule, alert, investigation, watchlist, watchlist_match) with appropriate primary/foreign keys and cardinality | 7 entities correct; minor relationship issues | 6 entities correct; some relationship gaps | <6 entities or major structural flaws |
+| **Entity Modeling & Relationships** | All 8 entities correctly designed (customer, account, txn, alert_rule, alert, investigation, watchlist, watchlist_match) with appropriate primary/foreign keys and cardinality | 7 entities correct; minor relationship issues | 6 entities correct; some relationship gaps | <6 entities or major structural flaws |
 | **Domain Constraints** | Enforces risk ratings (LOW/MEDIUM/HIGH/SANCTIONED), rule types (structuring, smurfing, velocity, geography, pattern), alert statuses, investigation states | Most constraints enforced | Basic constraints present | Missing key constraints |
-| **Indexing & Performance** | Strategic indexes on transaction timestamp, customer_id, rule_id for query optimization | Adequate indexes | Minimal indexing | No indexing strategy |
+| **Indexing & Performance** | Strategic indexes on txn timestamp, customer_id, rule_id for query optimization | Adequate indexes | Minimal indexing | No indexing strategy |
 | **Normalization** | Full 3NF; no redundancy; efficient structure | 3NF with minor denormalization | Some denormalization | Poor normalization |
 
 **Marks: __ / 8**
@@ -60,7 +60,7 @@
 | Criterion | Excellent | Good | Satisfactory | Needs Improvement |
 |-----------|-----------|------|--------------|-------------------|
 | **Rule Engine Design** | Clean abstraction: rule interface/implementations for Structuring, Velocity, Geography, Pattern rules; extensible for new rule types; configurable thresholds | Good design; minor extensibility gaps | Basic rule classes; limited flexibility | Monolithic/hard-coded rules |
-| **Alert Generation Service** | AlertService correctly evaluates rules, generates alerts with severity (derived from rule type + transaction context), links to investigation; handles SAR thresholds | Mostly functional; minor gaps in severity logic | Basic alert generation; limited SAR logic | Incomplete alert logic |
+| **Alert Generation Service** | AlertService correctly evaluates rules, generates alerts with severity (derived from rule type + txn context), links to investigation; handles SAR thresholds | Mostly functional; minor gaps in severity logic | Basic alert generation; limited SAR logic | Incomplete alert logic |
 | **Watchlist Screening Service** | WatchlistScreeningService matches customer/account against OFAC/UN/HMT lists (via watchlist entity); sets risk rating SANCTIONED; blocks transactions appropriately | Good matching logic; minor edge cases | Basic matching; limited coverage | Incomplete screening |
 | **Investigation State Machine** | Investigation moves through states (NEW → UNDER_REVIEW → SAR_FILED → CLOSED); correct state transitions; idempotent operations | Mostly correct; minor state gaps | Basic state transitions | Incorrect or incomplete states |
 
@@ -72,7 +72,7 @@
 |-----------|-----------|------|--------------|-------------------|
 | **JDBC Implementation** | DAO classes for each entity; proper Connection management (try-with-resources); parameterized queries (no SQL injection); efficient batch operations | Good JDBC usage; minor resource issues | Basic JDBC; some SQL injection risk | Poor connection handling or SQL injection risk |
 | **Object Mapping** | Clean POJOs (Customer, Account, Transaction, AlertRule, Alert, Investigation); proper getters/setters; equals/hashCode where needed | Mostly correct; minor mapping gaps | Basic POJOs; some missing fields | Incomplete or incorrect POJOs |
-| **Transaction Handling** | Appropriate use of JDBC transactions for multi-step operations (e.g. create alert + investigation); rollback on error | Mostly correct; minor edge cases | Basic transaction logic | Poor transaction handling |
+| **Transaction Handling** | Appropriate use of JDBC transactions for multi-step operations (e.g. create alert + investigation); rollback on error | Mostly correct; minor edge cases | Basic txn logic | Poor txn handling |
 | **Query Efficiency** | Queries avoid N+1 problems; batch fetches where appropriate; proper use of indexes | Good efficiency; minor optimization gaps | Acceptable queries | Inefficient queries |
 
 **Marks: __ / 8**
@@ -84,7 +84,7 @@
 | **Test Coverage** | ≥75% code coverage (JaCoCo); all critical paths tested: rule matching, alert generation, watchlist screening, state transitions, edge cases (null, boundary values) | 60-75% coverage; most paths tested | 45-60% coverage; some gaps | <45% coverage or incomplete tests |
 | **JUnit Test Quality** | Well-organized test classes; clear test names (given-when-then pattern); independent tests; proper setup/teardown; no test interdependencies | Mostly well-organized; minor clarity gaps | Basic test structure; some interdependencies | Poor organization or interdependencies |
 | **Mockito Usage** | Proper mocking of DAO/external services; verification of calls; stub responses for edge cases | Good mocking; minor issues | Basic mocking present | Limited or incorrect mocking |
-| **AML Domain Tests** | Tests cover AML scenarios: structuring (small transactions over time), smurfing (multiple accounts same customer), velocity (high transaction count), geographic anomalies, PEP/watchlist hits | Most AML scenarios covered; minor gaps | Some AML scenarios; limited coverage | Few or no AML-specific tests |
+| **AML Domain Tests** | Tests cover AML scenarios: structuring (small transactions over time), smurfing (multiple accounts same customer), velocity (high txn count), geographic anomalies, PEP/watchlist hits | Most AML scenarios covered; minor gaps | Some AML scenarios; limited coverage | Few or no AML-specific tests |
 
 **Marks: __ / 10**
 

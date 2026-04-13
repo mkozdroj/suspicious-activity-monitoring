@@ -15,7 +15,7 @@
 -- ============================================================
 
 INSERT INTO alert
-    (alert_id, alert_ref, rule_id, account_id, transaction_id, triggered_at, alert_score, status, assigned_to, notes)
+    (alert_id, alert_ref, rule_id, account_id, txn_id, triggered_at, alert_score, status, assigned_to, notes)
 VALUES
     (1, 'ALT-2026-0001', 1, 1, 3, '2026-03-03 09:15:00', 78, 'UNDER_REVIEW', 'aml.analyst1@hsbc.com', 'Three consecutive cash deposits just below £10K over 3 days'),
     (2, 'ALT-2026-0002', 5, 4, 5, '2026-03-11 14:22:00', 92, 'ESCALATED', 'aml.senior@hsbc.com', 'Wire to Iranian bank — sanctions review required'),

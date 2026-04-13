@@ -21,7 +21,7 @@ Run `00_ddl_schema.sql` first to create all tables, then load data files in numb
 |------|-------|-------------|
 | 01 | `customer` | 20 customers: individuals, corporates, trusts, charities across multiple jurisdictions and risk ratings (LOW → SANCTIONED) |
 | 02 | `account` | 20 accounts: GBP/EUR/USD/HKD/SGD; statuses include ACTIVE, FROZEN, RESTRICTED |
-| 03 | `transaction` | 20 transactions: WIRE, CASH, INTERNAL; includes Iran/Syria/Russia/Cayman counterparties and structuring patterns |
+| 03 | `txn` | 20 transactions: WIRE, CASH, INTERNAL; includes Iran/Syria/Russia/Cayman counterparties and structuring patterns |
 | 04 | `alert_rule` | 20 AML detection rules: structuring, velocity, geography, watchlist, pattern-based |
 | 05 | `alert` | 20 alerts: OPEN → UNDER_REVIEW → ESCALATED → SAR_FILED; two confirmed SARs included |
 | 06 | `investigation` | 20 investigations: detailed findings, outcomes (SAR_FILED, NO_ACTION, ACCOUNT_CLOSED) |
@@ -65,7 +65,7 @@ ORDER BY al.alert_score DESC;
 -- 2. Transactions to/from high-risk countries in last 30 days
 SELECT t.transaction_ref, c.full_name, t.counterparty_country,
        t.transaction_type, t.direction, t.amount_usd, t.transaction_date
-FROM transaction t
+FROM txn t
 JOIN account a   ON t.account_id = a.account_id
 JOIN customer c  ON a.customer_id = c.customer_id
 WHERE t.counterparty_country IN ('IR','SY','KP','RU','MM','KW','BY','CU')
@@ -77,7 +77,7 @@ SELECT wm.match_id, wm.match_type, wm.match_score, wl.entity_name,
        wl.list_type, wm.matched_field, wm.matched_value, t.transaction_ref
 FROM watchlist_match wm
 JOIN watchlist wl        ON wm.watchlist_id = wl.watchlist_id
-JOIN transaction t       ON wm.transaction_id = t.transaction_id
+JOIN txn t       ON wm.transaction_id = t.transaction_id
 WHERE wm.status = 'PENDING'
 ORDER BY wm.match_score DESC;
 ```
