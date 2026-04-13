@@ -36,8 +36,8 @@ public class Alert {
 
     // Specific transaction that triggered the alert (optional)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "transaction_id")
-    private Transaction transaction;
+    @JoinColumn(name = "txn_id")
+    private Txn txn;
 
     @Column(name = "triggered_at", nullable = false)
     private LocalDateTime triggeredAt;

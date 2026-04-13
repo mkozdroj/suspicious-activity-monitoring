@@ -14,8 +14,8 @@
 --    07_watchlist → 08_watchlist_matches
 -- ============================================================
 
-INSERT INTO transaction
-    (transaction_id, transaction_ref, account_id, counterparty_account, counterparty_bank, counterparty_country, transaction_type, direction, amount, currency, amount_usd, transaction_date, value_date, status, description)
+INSERT INTO txn
+    (txn_id, txn_ref, account_id, counterparty_account, counterparty_bank, counterparty_country, txn_type, direction, amount, currency, amount_usd, txn_date, value_date, status, description)
 VALUES
     (1, 'TXN-2026-000001', 1, NULL, NULL, NULL, 'CASH', 'CR', 9500.0, 'GBP', 12017.5, '2026-03-01', '2026-03-01', 'COMPLETED', 'Cash deposit'),
     (2, 'TXN-2026-000002', 1, NULL, NULL, NULL, 'CASH', 'CR', 9400.0, 'GBP', 11891.8, '2026-03-02', '2026-03-02', 'COMPLETED', 'Cash deposit'),

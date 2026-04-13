@@ -50,7 +50,7 @@ public class Account {
 
     // One account can have many transactions — FK is on transaction side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Transaction> transactions;
+    private List<Txn> txns;
 
     // One account can have many alerts — FK is on alert side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

@@ -15,7 +15,7 @@
 -- ============================================================
 
 INSERT INTO watchlist_match
-    (match_id, transaction_id, watchlist_id, match_type, match_score, matched_field, matched_value, status, reviewed_by, reviewed_at)
+    (match_id, txn_id, watchlist_id, match_type, match_score, matched_field, matched_value, status, reviewed_by, reviewed_at)
 VALUES
     (1, 15, 1, 'NAME', 100.0, 'customer_name', 'Narco Shell Corp', 'CONFIRMED', 'aml.senior@hsbc.com', '2026-01-08 08:05:00'),
     (2, 16, 1, 'NAME', 100.0, 'customer_name', 'Narco Shell Corp', 'CONFIRMED', 'aml.senior@hsbc.com', '2026-01-08 08:05:00'),

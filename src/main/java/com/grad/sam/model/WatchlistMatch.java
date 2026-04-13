@@ -22,8 +22,8 @@ public class WatchlistMatch {
 
     // Match is raised at transaction level (not customer level)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "transaction_id", nullable = false)
-    private Transaction transaction;
+    @JoinColumn(name = "txn_id", nullable = false)
+    private Txn txn;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "watchlist_id", nullable = false)
