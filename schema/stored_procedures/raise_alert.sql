@@ -5,7 +5,7 @@ delimiter $$
 drop procedure if exists raise_alert$$
 
 create procedure raise_alert(
-	in p_transaction_id bigint,
+	in p_txn_id bigint,
     in p_rule_id bigint,
     in p_assigned_to varchar(60),
     out o_alert_id bigint
@@ -27,8 +27,8 @@ begin
 	limit 1;
 
 	select t.account_id into v_account_id
-	from transaction t
-	where t.transaction_id = p_transaction_id
+	from txn t
+	where t.txn_id = p_txn_id
 	limit 1;
 
 	select coalesce(max(alert_id), 0) + 1
@@ -44,8 +44,8 @@ begin
 		else 35
 	end;
 
-	insert into alert (alert_id, alert_ref, rule_id, account_id, transaction_id, triggered_at, alert_score, status, assigned_to)
-	values (v_next_id, v_alert_ref, p_rule_id, v_account_id, p_transaction_id, now(), v_alert_score, 'OPEN', p_assigned_to);
+	insert into alert (alert_id, alert_ref, rule_id, account_id, txn_id, triggered_at, alert_score, status, assigned_to)
+	values (v_next_id, v_alert_ref, p_rule_id, v_account_id, p_txn_id, now(), v_alert_score, 'OPEN', p_assigned_to);
 
 	set o_alert_id = v_next_id;
 end$$
