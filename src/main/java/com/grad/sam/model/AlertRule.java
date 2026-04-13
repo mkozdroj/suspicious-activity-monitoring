@@ -19,7 +19,7 @@ public class AlertRule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "rule_id")
-    private Long ruleId;
+    private Integer ruleId;
 
     @Column(name = "rule_code", nullable = false, unique = true, length = 20)
     private String ruleCode;

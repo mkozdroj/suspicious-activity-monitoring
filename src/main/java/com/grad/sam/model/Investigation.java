@@ -18,7 +18,7 @@ public class Investigation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "investigation_id")
-    private Long investigationId;
+    private Integer investigationId;
 
     @Column(name = "investigation_ref", nullable = false, unique = true, length = 15)
     private String investigationRef;
