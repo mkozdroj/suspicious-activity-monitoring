@@ -7,7 +7,7 @@ drop procedure if exists match_watchlist$$
 create procedure match_watchlist(
     in p_customer_name varchar(100),
     in p_threshold decimal(5,2),
-    in p_transaction_id bigint
+    in p_txn_id bigint
 )
 begin
     declare v_normalized_name varchar(100);
@@ -17,10 +17,10 @@ begin
 
     select coalesce(max(match_id), 0) + 1 into v_match_id from watchlist_match;
 
-    insert into watchlist_match (match_id, transaction_id, watchlist_id, match_type,
+    insert into watchlist_match (match_id, txn_id, watchlist_id, match_type,
                                 match_score, matched_field, matched_value, status)
     select v_match_id + row_number() over(order by w.watchlist_id),
-           p_transaction_id,
+           p_txn_id,
            w.watchlist_id,
            'FUZZY_NAME',
            case
