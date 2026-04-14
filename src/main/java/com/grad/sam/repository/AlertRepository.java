@@ -15,35 +15,11 @@ public interface AlertRepository extends JpaRepository<Alert, Integer> {
 
     Optional<Alert> findByAlertRef(String alertRef);
 
-    // =====================================================
-    // OPEN ALERTS (uses open_alerts_vw)
-    // =====================================================
-//    default Map<String, Integer> countOpenAlertsBySeverity(Long customerId) {
-//        return getAlertDao().countOpenAlertsBySeverity(customerId);
-//    }
-
     List<Alert> findByStatus(String status);
 
-    List<Alert> findByAccount_AccountId(Integer accountId);
-    // =====================================================
-    // CREATE ALERT (stored procedure: raise_alert)
-    // =====================================================
-//    default Long raiseAlert(Long transactionId, Long ruleId, String assignedTo) {
-//        return getAlertDao().raiseAlert(transactionId, ruleId, assignedTo);
-//    }
+    List<Alert> findByAccount_AccountId(Long accountId);
 
     List<Alert> findByAssignedTo(String assignedTo);
 
     List<Alert> findByAlertScoreGreaterThanEqual(Short minScore);
 }
-    // =====================================================
-    // HIGH RISK ACCOUNT CHECK (uses high_risk_accounts_vw)
-    // =====================================================
-//    default boolean isHighRiskAccount(Long accountId) {
-//        return getAlertDao().isHighRiskAccount(accountId);
-//    }
-//
-//    // Optional (good for marks)
-//    default List<Long> getHighRiskAccounts() {
-//        return getAlertDao().getHighRiskAccounts();
-//    }

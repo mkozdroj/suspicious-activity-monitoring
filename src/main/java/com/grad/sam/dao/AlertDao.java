@@ -1,180 +1,78 @@
 package com.grad.sam.dao;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Repository;
+import com.grad.sam.model.Alert;
+import com.grad.sam.repository.AlertRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
-import java.sql.*;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 
-@Repository
+@Slf4j
+@Component
 public class AlertDao {
 
-    private static final Logger log = LoggerFactory.getLogger(AlertDao.class);
+    private final AlertRepository alertRepository;
 
-    private final DataSource dataSource;
-
-    public AlertDao(DataSource dataSource) {
-        this.dataSource = dataSource;
+    public AlertDao(AlertRepository alertRepository) {
+        this.alertRepository = alertRepository;
     }
 
-    // =====================================================
-    // 1. USE VIEW: open_alerts_vw (REPLACED JOIN)
-    // =====================================================
-    public Map<String, Integer> countOpenAlertsBySeverity(Long customerId) {
+    public List<Alert> findAll() {
+        return alertRepository.findAll();
+    }
 
-        String sql = """
-                SELECT severity, COUNT(*) AS cnt
-                FROM open_alerts_vw
-                WHERE customer_id = ?
-                GROUP BY severity
-                """;
+    public List<Alert> findOpenAlerts() {
+        return alertRepository.findByStatus("OPEN");
+    }
 
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
+    public List<Alert> findByStatus(String status) {
+        return alertRepository.findByStatus(status);
+    }
 
-        try {
-            conn = dataSource.getConnection();
-            ps   = conn.prepareStatement(sql);
-            ps.setLong(1, customerId);
-            rs = ps.executeQuery();
+    public List<Alert> findByAccountId(Long accountId) {
+        return alertRepository.findByAccount_AccountId(accountId);
+    }
 
-            Map<String, Integer> counts = new LinkedHashMap<>();
-            while (rs.next()) {
-                counts.put(rs.getString("severity"), rs.getInt("cnt"));
+    public List<Alert> findByAssignedTo(String assignedTo) {
+        return alertRepository.findByAssignedTo(assignedTo);
+    }
+
+    public Optional<Alert> findById(Integer alertId) {
+        return alertRepository.findById(alertId);
+    }
+
+    public Optional<Alert> findByAlertRef(String alertRef) {
+        return alertRepository.findByAlertRef(alertRef);
+    }
+
+    public Alert save(Alert alert) {
+        Alert saved = alertRepository.save(alert);
+        log.info("Saved alert: {} ({})", saved.getAlertRef(), saved.getAlertId());
+        return saved;
+    }
+
+    public void updateStatus(Integer alertId, String newStatus) {
+        alertRepository.findById(alertId).ifPresentOrElse(alert -> {
+            alert.setStatus(newStatus);
+            alertRepository.save(alert);
+            log.info("Updated alert {} status to: {}", alertId, newStatus);
+        }, () -> log.warn("Cannot update status — alert not found: {}", alertId));
+    }
+
+    public void assignTo(Integer alertId, String analystEmail) {
+        alertRepository.findById(alertId).ifPresentOrElse(alert -> {
+            alert.setAssignedTo(analystEmail);
+            if ("OPEN".equals(alert.getStatus())) {
+                alert.setStatus("UNDER_REVIEW");
             }
-
-            return counts;
-
-        } catch (SQLException e) {
-            log.error("countOpenAlertsBySeverity() failed — customerId={}", customerId, e);
-            throw new RuntimeException(e);
-
-        } finally {
-            closeQuietly(rs, ps, conn);
-        }
+            alertRepository.save(alert);
+            log.info("Assigned alert {} to: {}", alertId, analystEmail);
+        }, () -> log.warn("Cannot assign — alert not found: {}", alertId));
     }
 
-    // =====================================================
-    // 2. STORED PROCEDURE: raise_alert
-    // =====================================================
-    public Long raiseAlert(Long txnId, Long ruleId, String assignedTo) {
-        return (Long) execute("raise_alert", Types.BIGINT, txnId, ruleId, assignedTo);
-    }
-
-    // =====================================================
-    // 3. USE VIEW: high_risk_accounts_vw
-    // =====================================================
-    public boolean isHighRiskAccount(Long accountId) {
-
-        String sql = """
-                SELECT 1
-                FROM high_risk_accounts_vw
-                WHERE account_id = ?
-                """;
-
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        try {
-            conn = dataSource.getConnection();
-            ps   = conn.prepareStatement(sql);
-            ps.setLong(1, accountId);
-            rs = ps.executeQuery();
-
-            return rs.next();
-
-        } catch (SQLException e) {
-            log.error("isHighRiskAccount() failed — accountId={}", accountId, e);
-            throw new RuntimeException(e);
-
-        } finally {
-            closeQuietly(rs, ps, conn);
-        }
-    }
-
-    public List<Long> getHighRiskAccounts() {
-
-        String sql = "SELECT account_id FROM high_risk_accounts_vw";
-
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        try {
-            conn = dataSource.getConnection();
-            ps   = conn.prepareStatement(sql);
-            rs = ps.executeQuery();
-
-            List<Long> list = new ArrayList<>();
-            while (rs.next()) {
-                list.add(rs.getLong("account_id"));
-            }
-
-            return list;
-
-        } catch (SQLException e) {
-            log.error("getHighRiskAccounts() failed", e);
-            throw new RuntimeException(e);
-
-        } finally {
-            closeQuietly(rs, ps, conn);
-        }
-    }
-
-    // =====================================================
-    // GENERIC STORED PROCEDURE EXECUTOR
-    // =====================================================
-    private Object execute(String procedureName, int outType, Object... params) {
-
-        Connection conn = null;
-        CallableStatement cs = null;
-
-        try {
-            conn = dataSource.getConnection();
-
-            StringBuilder call = new StringBuilder("{ call ");
-            call.append(procedureName).append("(");
-
-            int totalParams = params.length + 1; // +1 for OUT param
-            for (int i = 0; i < totalParams; i++) {
-                call.append("?");
-                if (i < totalParams - 1) call.append(",");
-            }
-            call.append(") }");
-
-            cs = conn.prepareCall(call.toString());
-
-            // IN params
-            for (int i = 0; i < params.length; i++) {
-                cs.setObject(i + 1, params[i]);
-            }
-
-            // OUT param
-            cs.registerOutParameter(params.length + 1, outType);
-
-            cs.execute();
-
-            return cs.getObject(params.length + 1);
-
-        } catch (SQLException e) {
-            log.error("Stored procedure call failed: {}", procedureName, e);
-            throw new RuntimeException(e);
-
-        } finally {
-            closeQuietly(null, cs, conn);
-        }
-    }
-
-    // =====================================================
-    // CLEANUP
-    // =====================================================
-    private void closeQuietly(ResultSet rs, Statement stmt, Connection conn) {
-        try { if (rs != null) rs.close(); } catch (Exception ignored) {}
-        try { if (stmt != null) stmt.close(); } catch (Exception ignored) {}
-        try { if (conn != null) conn.close(); } catch (Exception ignored) {}
+    public void delete(Integer alertId) {
+        alertRepository.deleteById(alertId);
+        log.info("Deleted alert: {}", alertId);
     }
 }
