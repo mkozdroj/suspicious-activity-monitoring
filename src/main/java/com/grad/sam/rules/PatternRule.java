@@ -1,0 +1,47 @@
+package com.grad.sam.rules;
+
+import com.grad.sam.model.AlertRule;
+import com.grad.sam.model.Txn;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+@Component
+public class PatternRule implements AmlRule {
+
+    private static final int DEFAULT_REPEAT_THRESHOLD = 2;
+
+    @Override
+    public String getSupportedCategory() {
+        return "PATTERN";
+    }
+
+    @Override
+    public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        int repeatThreshold = rule.getThresholdCount() != null
+                ? rule.getThresholdCount()
+                : DEFAULT_REPEAT_THRESHOLD;
+
+        BigDecimal currentAmount = context.getTxn().getAmountUsd();
+
+        // Combine window txns with current txn and count occurrences per amount
+        Map<BigDecimal, Long> frequencyMap = Stream.concat(
+                        context.getRecentTxns().stream().map(Txn::getAmountUsd),
+                        Stream.of(currentAmount))
+                .collect(Collectors.groupingBy(a -> a, Collectors.counting()));
+
+        return frequencyMap.entrySet().stream()
+                .filter(e -> e.getValue() >= repeatThreshold)
+                .findFirst()
+                .map(e -> {
+                    String reason = String.format(
+                            "Smurfing/pattern detected: amount USD %.2f repeated %d times in %d-day window",
+                            e.getKey(), e.getValue(), rule.getLookbackDays());
+                    return new RuleMatch(rule, reason);
+                });
+    }
+}

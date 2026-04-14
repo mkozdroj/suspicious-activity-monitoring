@@ -4,11 +4,11 @@ CREATE TABLE txn (
     account_id           INT             NOT NULL,
     counterparty_account VARCHAR(30),                      -- external account
     counterparty_bank    VARCHAR(60),
-    counterparty_country CHAR(2),
+    counterparty_country VARCHAR(2),
     txn_type             VARCHAR(20)     NOT NULL CHECK (txn_type IN ('WIRE', 'CASH', 'CARD', 'INTERNAL', 'CRYPTO', 'CHEQUE')),
-    direction            CHAR(2)         NOT NULL CHECK (direction IN ('CR', 'DR')),   -- CR - in DR - out
+    direction            VARCHAR(2)         NOT NULL CHECK (direction IN ('CR', 'DR')),   -- CR - in DR - out
     amount               DECIMAL(18,2)   NOT NULL CHECK (amount > 0),
-    currency             CHAR(3)         NOT NULL,
+    currency             VARCHAR(3)         NOT NULL,
     amount_usd           DECIMAL(18,2)   NOT NULL CHECK (amount_usd > 0),          -- normalised to USD
     txn_date             DATE            NOT NULL,
     value_date           DATE            NOT NULL,
