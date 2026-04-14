@@ -1,7 +1,9 @@
 package com.grad.sam.repository;
 
 import com.grad.sam.model.Txn;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -42,4 +44,10 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
     List<Txn> findRecentByAccount(@Param("accountId") Integer accountId,
                                   @Param("excludeTxnId") Integer excludeTxnId,
                                   @Param("from") LocalDate from);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Txn t SET t.status = :status WHERE t.txnId = :txnId")
+    int updateStatus(@Param("txnId") Integer txnId,
+                     @Param("status") String status);
 }
