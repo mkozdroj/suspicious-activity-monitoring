@@ -1,6 +1,7 @@
 package com.grad.sam.model;
 
 import com.grad.sam.enums.AlertSeverity;
+import com.grad.sam.enums.RuleCategory;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,8 +29,9 @@ public class AlertRule {
     private String ruleName;
 
     // STRUCTURING, SMURFING, VELOCITY, WATCHLIST, GEOGRAPHY, PATTERN
+    @Enumerated(EnumType.STRING)
     @Column(name = "rule_category", nullable = false, length = 30)
-    private String ruleCategory;
+    private RuleCategory ruleCategory;
 
     @Column(name = "description", nullable = false, length = 255)
     private String description;

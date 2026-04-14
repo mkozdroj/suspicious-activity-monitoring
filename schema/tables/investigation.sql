@@ -9,6 +9,7 @@ CREATE TABLE investigation (
     outcome             VARCHAR(20),    CHECK (outcome IN ('SAR_FILED', 'NO_ACTION', 'ACCOUNT_CLOSED', 'ESCALATED', 'MONITORING')),
     priority            VARCHAR(10)     NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')),
     findings            VARCHAR(500),
+    state               VARCHAR(15)     NOT NULL DEFAULT 'OPEN' CHECK (state IN ('OPEN', 'UNDER_REVIEW', 'CLOSED')),
     FOREIGN KEY (alert_id)    REFERENCES alert(alert_id),
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
 );

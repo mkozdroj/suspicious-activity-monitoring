@@ -1,7 +1,9 @@
 package com.grad.sam.enums;
 
-public enum RuleType {
+public enum RuleCategory {
     STRUCTURING,
+    SMURFING,
+    WATCHLIST,
     VELOCITY,
     GEOGRAPHY,
     PATTERN

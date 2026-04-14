@@ -1,6 +1,8 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
+import com.grad.sam.enums.InvestigationState;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -51,4 +53,8 @@ public class Investigation {
 
     @Column(name = "findings", length = 500)
     private String findings;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "state", length = 20)
+    private InvestigationState state;
 }

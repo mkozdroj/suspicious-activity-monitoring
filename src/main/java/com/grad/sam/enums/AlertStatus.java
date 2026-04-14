@@ -5,5 +5,6 @@ public enum AlertStatus {
     UNDER_REVIEW,
     ESCALATED,
     CLOSED,
-    FALSE_POSITIVE
+    FALSE_POSITIVE,
+    SAR_FILED
 }
