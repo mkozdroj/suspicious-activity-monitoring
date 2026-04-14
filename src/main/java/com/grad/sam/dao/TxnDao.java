@@ -2,6 +2,7 @@ package com.grad.sam.dao;
 
 import com.grad.sam.model.Txn;
 import com.grad.sam.repository.TxnRepository;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -51,9 +52,25 @@ public class TxnDao {
         return txnRepository.findByCounterpartyCountry(country);
     }
 
+    public String getStatus(Integer txnId) {
+        return txnRepository.findById(txnId)
+                .map(Txn::getStatus)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction " + txnId + " not found."));
+    }
+
     public Txn save(Txn txn) {
         Txn saved = txnRepository.save(txn);
         log.info("Saved txn: {} (id: {})", saved.getTxnRef(), saved.getTxnId());
         return saved;
+    }
+
+    @Transactional
+    public void updateStatus(Integer txnId, String status) {
+        int rows = txnRepository.updateStatus(txnId, status);
+        if (rows > 0) {
+            log.info("Updated txn {} status to {}", txnId, status);
+        } else {
+            log.warn("Transaction {} not found for status update", txnId);
+        }
     }
 }
