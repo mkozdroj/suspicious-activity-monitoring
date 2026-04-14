@@ -12,7 +12,7 @@ CREATE TABLE txn (
     amount_usd           DECIMAL(18,2)   NOT NULL CHECK (amount_usd > 0),          -- normalised to USD
     txn_date             DATE            NOT NULL,
     value_date           DATE            NOT NULL,
-    status               VARCHAR(12)     NOT NULL DEFAULT 'COMPLETED' CHECK (status IN ('COMPLETED', 'PENDING', 'REVERSED', 'FAILED')),
+    status               VARCHAR(12)     NOT NULL DEFAULT 'COMPLETED' CHECK (status IN ('COMPLETED', 'PENDING', 'SCREENED', 'BLOCKED', 'REVERSED', 'FAILED')),
     description          VARCHAR(200),
     FOREIGN KEY (account_id) REFERENCES account(account_id),
     CONSTRAINT chk_value_date CHECK (value_date >= txn_date)
