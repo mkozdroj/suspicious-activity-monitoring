@@ -100,33 +100,33 @@ order by txn_id;
 -- ===================
 -- test: match_watchlist
 
--- test 3a: Exact match
+-- test 3a: Exact match — customer 'Viktor Sokolov' matches watchlist entry 'Viktor Alexandr Sokolov'
 select 'test 3a' as test;
-call match_watchlist('Bank Mellat', 100.00, 5);
+call match_watchlist('Viktor Sokolov', 85.00, 4);
 select match_id, txn_id, watchlist_id, match_type, match_score, matched_value, status
 from watchlist_match
-where txn_id = 5
+where txn_id = 4
 order by match_id desc;
 
--- test 3b: Partial match
+-- test 3b: Exact match — customer 'Narco Shell Corp' is on the OFAC list
 select 'test 3b' as test;
-call match_watchlist('Bank Mellat Iran', 85.00, 18);
+call match_watchlist('Narco Shell Corp', 85.00, 15);
 select match_id, txn_id, watchlist_id, match_type, match_score, matched_value, status
 from watchlist_match
-where txn_id = 18
+where txn_id = 15
 order by match_id desc;
 
--- test 3c: No match
+-- test 3c: Partial match — 'Pacific Bridge' should fuzzy-match 'Pacific Bridge Holdings'
 select 'test 3c' as test;
-call match_watchlist('John Smith Import Export', 100.00, 3);
+call match_watchlist('Pacific Bridge', 85.00, 6);
 select match_id, txn_id, watchlist_id, match_type, match_score, matched_value, status
 from watchlist_match
-where txn_id = 3
+where txn_id = 6
 order by match_id desc;
 
--- test 3d: Lower threshold
+-- test 3d: No match — clean customer name, should return nothing
 select 'test 3d' as test;
-call match_watchlist('Commercial Bank', 50.00, 1);
+call match_watchlist('James Thornton', 85.00, 1);
 select match_id, txn_id, watchlist_id, match_type, match_score, matched_value, status
 from watchlist_match
 where txn_id = 1
