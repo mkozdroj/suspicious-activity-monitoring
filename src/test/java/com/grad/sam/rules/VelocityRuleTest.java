@@ -7,6 +7,7 @@ import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ActiveProfiles("test")
 class VelocityRuleTest {
 
     private VelocityRule rule;
@@ -131,7 +133,7 @@ class VelocityRuleTest {
         assertEquals("VELOCITY", rule.getSupportedCategory());
     }
 
-    // helpers methods
+    // helper methods
     private List<Txn> buildTxns(int count) {
         return IntStream.range(0, count)
                 .mapToObj(i -> {

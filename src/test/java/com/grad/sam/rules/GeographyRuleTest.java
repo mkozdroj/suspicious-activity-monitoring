@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ActiveProfiles("test")
 class GeographyRuleTest {
 
     private GeographyRule rule;
@@ -135,7 +137,7 @@ class GeographyRuleTest {
         assertEquals("GEOGRAPHY", rule.getSupportedCategory());
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────────
+    // Helper methods
 
     private RuleContext buildContext(String counterpartyCountry) {
         Txn txn = new Txn();

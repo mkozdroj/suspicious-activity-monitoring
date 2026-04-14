@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 // RoundNumberRule fires when amountUsd is exactly divisible by the divisor (default 1000)
 // AND amountUsd >= divisor.
 // Rationale: criminals often use round numbers to avoid attention.
-
+@ActiveProfiles("test")
 class RoundNumberRuleTest {
 
     private RoundNumberRule rule;
@@ -96,6 +97,7 @@ class RoundNumberRuleTest {
     }
 
     // custom divisor from rule threshold
+    @Test
     void fires_for_custom_divisor_set_in_rule() {
         // Rule configured with threshold 500 instead of default 1000
         alertRule.setThresholdAmount(new BigDecimal("500.00"));

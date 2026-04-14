@@ -13,8 +13,11 @@ import com.grad.sam.rules.RuleMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.context.ActiveProfiles;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class RuleEngineServiceTest {
 
     @Mock private AlertRuleDao alertRuleDao;
@@ -326,6 +330,86 @@ class RuleEngineServiceTest {
         verify(raiseAlertStatement).setString(eq(3), argThat(note ->
                 note != null && note.length() == 500 && note.endsWith("...")
         ));
+    }
+
+    // ── Parameterised AML category tests ─────────────────────────────────────
+
+    @ParameterizedTest
+    @EnumSource(value = RuleCategory.class, names = {"STRUCTURING", "SMURFING", "VELOCITY", "GEOGRAPHY", "WATCHLIST", "PATTERN"})
+    void fires_alert_for_each_aml_rule_category(RuleCategory category) throws Exception {
+        stubOneRaiseAlertAndScreenTransaction();
+
+        AlertRule rule = buildAlertRule(10, category.name() + "-001", category, 30);
+        AmlRule impl = mockRuleThatFires(category, rule, "AML hit: " + category.name());
+
+        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
+        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(raiseAlertStatement.getLong(4)).thenReturn(200L);
+
+        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+
+        List<Long> result = service.screenTransaction(currentTxn, account);
+
+        assertEquals(1, result.size(), "Expected alert for category: " + category);
+        assertEquals(200L, result.get(0));
+    }
+
+    // ── Inactive rule skipped ─────────────────────────────────────────────────
+
+    @Test
+    void inactive_rule_is_never_evaluated() throws Exception {
+        stubScreenTransactionOnly();
+
+        // DAO returns only active rules — inactive ones are filtered out before reaching service
+        // This test verifies the service works correctly when DAO returns empty (all rules inactive)
+        AlertRule inactiveRule = buildAlertRule(99, "STR-INACTIVE", RuleCategory.STRUCTURING, 30);
+        inactiveRule.setIsActive(false);
+
+        AmlRule impl = mock(AmlRule.class);
+        when(impl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
+
+        // findActiveRules returns empty — inactive rule was filtered by the DAO/repository
+        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
+        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+
+        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+
+        List<Long> result = service.screenTransaction(currentTxn, account);
+
+        assertTrue(result.isEmpty(), "Inactive rule should not generate any alert");
+        verify(impl, never()).evaluate(any(), any());
+    }
+
+    // PEP / Watchlist hit scenario
+
+    @Test
+    void pep_watchlist_hit_raises_alert_with_correct_rule_and_reason() throws Exception {
+        stubOneRaiseAlertAndScreenTransaction();
+
+        // Simulate a transaction by a PEP customer hitting a watchlist entry
+        currentTxn.setCounterpartyCountry("KP"); // North Korea — sanctioned
+        currentTxn.setAmountUsd(new BigDecimal("75000.00"));
+
+        AlertRule watchlistRule = buildAlertRule(20, "WL-PEP-001", RuleCategory.WATCHLIST, 30);
+        watchlistRule.setSeverity(AlertSeverity.CRITICAL);
+
+        String expectedReason = "PEP customer matched OFAC watchlist entry — counterparty in KP";
+        AmlRule watchlistImpl = mockRuleThatFires(RuleCategory.WATCHLIST, watchlistRule, expectedReason);
+
+        when(alertRuleDao.findActiveRules()).thenReturn(List.of(watchlistRule));
+        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(raiseAlertStatement.getLong(4)).thenReturn(300L);
+
+        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(watchlistImpl));
+
+        List<Long> result = service.screenTransaction(currentTxn, account);
+
+        assertEquals(1, result.size());
+        assertEquals(300L, result.get(0));
+
+        // Verify the correct reason was passed to raise_alert stored procedure
+        verify(raiseAlertStatement).setString(3, expectedReason);
+        verify(raiseAlertStatement).setInt(2, 20); // correct rule ID
     }
 
     private void stubScreenTransactionOnly() throws Exception {

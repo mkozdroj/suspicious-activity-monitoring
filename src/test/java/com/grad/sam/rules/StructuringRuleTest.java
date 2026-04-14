@@ -7,6 +7,7 @@ import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 // Structuring rule fires when the cumulative USD total in the lookback window
 // falls in the band [75% of threshold, 100% of threshold).
 // i.e. the customer is breaking up payments to stay just under the reporting limit.
-
+@ActiveProfiles("test")
 class StructuringRuleTest {
 
     private StructuringRule rule;

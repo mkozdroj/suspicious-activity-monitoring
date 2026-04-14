@@ -7,6 +7,7 @@ import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 // PatternRule (Smurfing detection) fires when the same amount appears
 // >= thresholdCount times within the lookback window (including the current txn).
-
+@ActiveProfiles("test")
 class PatternRuleTest {
 
     private PatternRule rule;
