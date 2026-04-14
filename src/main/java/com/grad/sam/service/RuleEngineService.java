@@ -93,12 +93,18 @@ public class RuleEngineService {
     // ----------------------------------------------------------------
 
     private Optional<RuleMatch> evaluateRule(RuleContext context, AlertRule rule) {
-        AmlRule impl = rulesByCategory.get(rule.getRuleCategory());
+        if (rule.getRuleCategory() == null) {
+            log.warn("Rule category is null for rule_code: {}", rule.getRuleCode());
+            return Optional.empty();
+        }
+
+        AmlRule impl = rulesByCategory.get(rule.getRuleCategory().name());
         if (impl == null) {
             log.warn("No rule implementation found for category '{}' (rule_code: {})",
                     rule.getRuleCategory(), rule.getRuleCode());
             return Optional.empty();
         }
+
         try {
             return impl.evaluate(context, rule);
         } catch (Exception e) {
