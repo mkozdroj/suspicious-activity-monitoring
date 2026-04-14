@@ -1,2 +1,0 @@
-// TODO - implementation. Txt file will be removed.
-// One interface like AmlRule and classes like GeographyRule, PatternRule, VelocityRule which implements AmlRule interface
