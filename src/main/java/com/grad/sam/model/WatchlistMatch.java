@@ -18,7 +18,7 @@ public class WatchlistMatch {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "match_id")
-    private Long matchId;
+    private Integer matchId;
 
     // Match is raised at transaction level (not customer level)
     @ManyToOne(fetch = FetchType.LAZY)

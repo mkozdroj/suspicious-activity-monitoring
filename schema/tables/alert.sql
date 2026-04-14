@@ -6,7 +6,7 @@ CREATE TABLE alert (
     txn_id              INT,                               -- triggering transaction (if applicable)
     triggered_at        TIMESTAMP       NOT NULL,
     alert_score         SMALLINT        NOT NULL CHECK (alert_score BETWEEN 0 AND 100),          -- 0–100 risk score
-    status              VARCHAR(15)     NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'UNDER_REVIEW', 'ESCALATED', 'CLOSED', 'SAR_FILED')),
+    status              VARCHAR(15)     NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'UNDER_REVIEW', 'ESCALATED', 'CLOSED', 'FALSE_POSITIVE', 'SAR_FILED')),
     assigned_to         VARCHAR(60),
     notes               VARCHAR(500),
     FOREIGN KEY (rule_id)        REFERENCES alert_rule(rule_id),
