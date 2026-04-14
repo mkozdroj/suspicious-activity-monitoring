@@ -25,6 +25,6 @@ public class WatchlistMatchDao {
 
     // optional: generalized queries
     public List<WatchlistMatch> findByTxnIdAndScoreThreshold(Integer txnId, BigDecimal threshold) {
-        return watchlistMatchRepository.findByTxnIdAndMatchScoreGreaterThanEqual(txnId, threshold);
+        return watchlistMatchRepository.findByTxn_TxnIdAndMatchScoreGreaterThanEqual(txnId, threshold);
     }
 }
