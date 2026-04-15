@@ -4,9 +4,9 @@ package com.grad.sam.service;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.Txn;
-import com.grad.sam.repository.AccountRepository;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.TxnRepository;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,21 +24,17 @@ import java.util.List;
  * This service implements the "screen_transaction" stored-procedure contract at the Java layer,
  * delegating rule evaluation to {@link RuleEngineService}.</p>
  */
+@Data
 @Slf4j
 @Service
 public class ScreenTransactionService {
 
     private final TxnRepository txnRepository;
-    private final AccountRepository accountRepository;
     private final AlertRepository alertRepository;
     private final RuleEngineService ruleEngineService;
 
-    public ScreenTransactionService(TxnRepository txnRepository,
-                                    AccountRepository accountRepository,
-                                    AlertRepository alertRepository,
-                                    RuleEngineService ruleEngineService) {
+    public ScreenTransactionService(TxnRepository txnRepository, AlertRepository alertRepository, RuleEngineService ruleEngineService) {
         this.txnRepository = txnRepository;
-        this.accountRepository = accountRepository;
         this.alertRepository = alertRepository;
         this.ruleEngineService = ruleEngineService;
     }
@@ -67,11 +63,7 @@ public class ScreenTransactionService {
             return List.of();
         }
 
-        Account account = accountRepository.findById(txn.getAccount().getAccountId()).orElse(null);
-        if (account == null) {
-            log.warn("Account not found for transaction: {}", txnId);
-            return List.of();
-        }
+        Account account = txn.getAccount();
 
         log.info("Screening txn {} ({}) on account {}",
                 txn.getTxnRef(), txnId, account.getAccountNumber());

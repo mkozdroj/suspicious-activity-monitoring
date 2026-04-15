@@ -1,8 +1,8 @@
 package com.grad.sam.service;
 
 
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.model.*;
-import com.grad.sam.repository.AccountRepository;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.TxnRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,11 +29,9 @@ import static org.mockito.Mockito.*;
  * 404 on missing transaction, 404 on missing account, delegates to rule engine.</p>
  */
 @ExtendWith(MockitoExtension.class)
-@ActiveProfiles("test")
 class ScreenTransactionServiceTest {
 
     @Mock private TxnRepository txnRepository;
-    @Mock private AccountRepository accountRepository;
     @Mock private AlertRepository alertRepository;
     @Mock private RuleEngineService ruleEngineService;
 
@@ -45,7 +43,7 @@ class ScreenTransactionServiceTest {
     @BeforeEach
     void setUp() {
         service = new ScreenTransactionService(
-                txnRepository, accountRepository, alertRepository, ruleEngineService);
+                txnRepository, alertRepository, ruleEngineService);
 
         Customer customer = new Customer();
         customer.setCustomerId(1);
@@ -76,7 +74,6 @@ class ScreenTransactionServiceTest {
         Alert alert2 = buildAlert(2, "ALT-002");
 
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(1L, 2L));
         when(alertRepository.findById(1)).thenReturn(Optional.of(alert1));
         when(alertRepository.findById(2)).thenReturn(Optional.of(alert2));
@@ -91,7 +88,6 @@ class ScreenTransactionServiceTest {
     @Test
     void returns_empty_list_when_no_rules_fire() {
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of());
 
         List<Alert> result = service.screenTransaction(42);
@@ -103,7 +99,6 @@ class ScreenTransactionServiceTest {
     @Test
     void delegates_to_rule_engine_with_correct_txn_and_account() {
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of());
 
         service.screenTransaction(42);
@@ -116,7 +111,6 @@ class ScreenTransactionServiceTest {
         Alert alert = buildAlert(99, "ALT-099");
 
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(99L));
         when(alertRepository.findById(99)).thenReturn(Optional.of(alert));
 
@@ -132,7 +126,6 @@ class ScreenTransactionServiceTest {
         Alert alert = buildAlert(1, "ALT-001");
 
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(1L, 999L));
         when(alertRepository.findById(1)).thenReturn(Optional.of(alert));
         when(alertRepository.findById(999)).thenReturn(Optional.empty()); // missing
@@ -154,15 +147,6 @@ class ScreenTransactionServiceTest {
         assertTrue(result.isEmpty());
     }
 
-    @Test
-    void returns_empty_list_when_account_not_found() {
-        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.empty());
-
-        List<Alert> result = service.screenTransaction(42);
-
-        assertTrue(result.isEmpty());
-    }
 
     @Test
     void does_not_call_rule_engine_when_transaction_missing() {
@@ -173,17 +157,7 @@ class ScreenTransactionServiceTest {
         verify(ruleEngineService, never()).screenTransaction(any(), any());
     }
 
-    @Test
-    void does_not_call_rule_engine_when_account_missing() {
-        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.empty());
-
-        service.screenTransaction(42);
-
-        verify(ruleEngineService, never()).screenTransaction(any(), any());
-    }
-
-    // ── AML domain scenarios ──────────────────────────────────────────────────
+    // AML domain scenarios
 
     @Test
     void high_value_pep_transaction_triggers_alert_from_multiple_rules() {
@@ -194,7 +168,6 @@ class ScreenTransactionServiceTest {
         txn.setAmountUsd(new BigDecimal("75000.00"));
 
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(1L, 2L));
         when(alertRepository.findById(1)).thenReturn(Optional.of(thresholdAlert));
         when(alertRepository.findById(2)).thenReturn(Optional.of(watchlistAlert));
@@ -209,7 +182,6 @@ class ScreenTransactionServiceTest {
         txn.setAmountUsd(new BigDecimal("150.00"));
 
         when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
-        when(accountRepository.findById(10)).thenReturn(Optional.of(account));
         when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of());
 
         List<Alert> result = service.screenTransaction(42);
@@ -217,14 +189,14 @@ class ScreenTransactionServiceTest {
         assertTrue(result.isEmpty());
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers methods
 
     private Alert buildAlert(int id, String ref) {
         Alert a = new Alert();
         a.setAlertId(id);
         a.setAlertRef(ref);
         a.setAlertScore((short) 75);
-        a.setStatus("OPEN");
+        a.setStatus(AlertStatus.OPEN);
         a.setTriggeredAt(LocalDateTime.now());
         return a;
     }

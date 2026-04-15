@@ -1,5 +1,6 @@
 package com.grad.sam.service;
 
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
 import com.grad.sam.model.Alert;
@@ -52,36 +53,31 @@ public class InvestigationService {
     private static final DateTimeFormatter REF_DATE_FMT =
             DateTimeFormatter.ofPattern("yyMMdd");
 
-    /** Simple in-process sequence for reference generation (sufficient for single-node). */
-    private static final AtomicLong REF_SEQUENCE = new AtomicLong(1);
 
     private final InvestigationRepository investigationRepository;
     private final AlertRepository alertRepository;
-    private final CustomerRepository customerRepository;
 
     public InvestigationService(InvestigationRepository investigationRepository,
-                                AlertRepository alertRepository,
-                                CustomerRepository customerRepository) {
+                                AlertRepository alertRepository) {
         this.investigationRepository = investigationRepository;
         this.alertRepository = alertRepository;
-        this.customerRepository = customerRepository;
     }
 
-    // -------------------------------------------------------------------------
     // Open Case
-    // -------------------------------------------------------------------------
-
     /**
      * Opens a new investigation case for a triggered alert and assigns it to a
      * compliance officer.
      *
      * <p>Each alert may have at most one investigation (enforced by the UNIQUE
-     * constraint on {@code investigation.alert_id}).  If an investigation already
+     * constraint on {@code investigation.alert_id}).
+     If an investigation already
+     * exists for the given alert, this method returns {@code null} and logs a warning.</p>
      *
      * @param alertId          the ID of the alert that prompted the investigation
      * @param assignedOfficer  email / username of the compliance officer taking the case
      * @param priority         case priority: LOW, MEDIUM, HIGH, URGENT
-     * @return the persisted {@link Investigation}
+     * @return the persisted {@link Investigation}, or {@code null} if the alert is not
+     *         found or an investigation already exists
      */
     @Transactional
     public Investigation openCase(Integer alertId, String assignedOfficer, String priority) {
@@ -97,15 +93,14 @@ public class InvestigationService {
             return null;
         }
 
-        Customer customer = customerRepository
-                .findById(alert.getAccount().getCustomer().getCustomerId()).orElse(null);
+
+        Customer customer = alert.getAccount().getCustomer();
         if (customer == null) {
             log.warn("Customer not found for alert: {}", alertId);
             return null;
         }
 
         Investigation investigation = new Investigation();
-        investigation.setInvestigationRef(generateRef());
         investigation.setAlert(alert);
         investigation.setCustomer(customer);
         investigation.setOpenedBy(assignedOfficer);
@@ -114,13 +109,16 @@ public class InvestigationService {
         investigation.setState(InvestigationState.OPEN);
 
         // Move the alert into UNDER_REVIEW so it doesn't appear on the open alerts view
-        alert.setStatus("UNDER_REVIEW");
+        alert.setStatus(AlertStatus.UNDER_REVIEW);
         alert.setAssignedTo(assignedOfficer);
         alertRepository.save(alert);
 
         Investigation saved = investigationRepository.save(investigation);
         log.info("Opened investigation {} for alert {} — assigned to {}",
                 saved.getInvestigationRef(), alertId, assignedOfficer);
+
+        saved.setInvestigationRef(buildRef(saved.getInvestigationId()));
+        investigationRepository.save(saved);
 
         return saved;
     }
@@ -232,16 +230,12 @@ public class InvestigationService {
         return investigationRepository.findByInvestigationRef(ref).orElse(null);
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
+    // Helper methods
     /**
      * Validates that the requested state transition is permitted by the state machine.
      *
      * @param from the current state
      * @param to   the requested next state
-     //* @param ref  investigation reference for error messaging
      */
     private boolean isValidTransition(InvestigationState from, InvestigationState to) {
         Set<InvestigationState> allowed = ALLOWED_TRANSITIONS.getOrDefault(from, Set.of());
@@ -257,12 +251,11 @@ public class InvestigationService {
     private void syncAlertOnClose(Alert alert, InvestigationOutcome outcome) {
         if (alert == null) return;
 
-        String alertStatus = switch (outcome) {
-            case SAR_FILED      -> "SAR_FILED";
-            case NO_ACTION      -> "CLOSED";
-            case ACCOUNT_CLOSED -> "CLOSED";
-            case ESCALATED      -> "ESCALATED";
-            case MONITORING     -> "UNDER_REVIEW";
+        AlertStatus alertStatus = switch (outcome) {
+            case SAR_FILED                      -> AlertStatus.SAR_FILED;
+            case NO_ACTION, ACCOUNT_CLOSED      -> AlertStatus.CLOSED;
+            case ESCALATED                      -> AlertStatus.ESCALATED;
+            case MONITORING                     -> AlertStatus.UNDER_REVIEW;
         };
 
         alert.setStatus(alertStatus);
@@ -271,14 +264,8 @@ public class InvestigationService {
                 alert.getAlertRef(), alertStatus, outcome);
     }
 
-    /**
-     * Generates a unique investigation reference in the format {@code INV-YYMMDD-NNNNN}.
-     *
-     * @return unique reference string
-     */
-    private String generateRef() {
+    private String buildRef(Integer id) {
         String datePart = LocalDateTime.now().format(REF_DATE_FMT);
-        long seq = REF_SEQUENCE.getAndIncrement();
-        return String.format("INV-%s-%05d", datePart, seq);
+        return String.format("INV-%s-%05d", datePart, id);
     }
 }

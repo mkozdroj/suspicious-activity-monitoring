@@ -1,11 +1,11 @@
 package com.grad.sam.service;
 
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
 import com.grad.sam.enums.RiskRating;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
-import com.grad.sam.repository.CustomerRepository;
 import com.grad.sam.repository.InvestigationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +25,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
@@ -32,7 +33,6 @@ class InvestigationServiceTest {
 
     @Mock private InvestigationRepository investigationRepository;
     @Mock private AlertRepository alertRepository;
-    @Mock private CustomerRepository customerRepository;
 
     private InvestigationService service;
 
@@ -42,7 +42,7 @@ class InvestigationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new InvestigationService(investigationRepository, alertRepository, customerRepository);
+        service = new InvestigationService(investigationRepository, alertRepository);
 
         customer = new Customer();
         customer.setCustomerId(1);
@@ -75,17 +75,16 @@ class InvestigationServiceTest {
         alert.setAlertRule(alertRule);
         alert.setAccount(account);
         alert.setAlertScore((short) 90);
-        alert.setStatus("OPEN");
+        alert.setStatus(AlertStatus.OPEN);
         alert.setTriggeredAt(LocalDateTime.now());
     }
 
-    // ── openCase ─────────────────────────────────────────────────────────────
+    // openCase
 
     @Test
     void openCase_creates_investigation_and_returns_it() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.of(customer));
         when(investigationRepository.save(any(Investigation.class)))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
@@ -93,21 +92,20 @@ class InvestigationServiceTest {
 
         assertNotNull(result);
         assertEquals(InvestigationState.OPEN, result.getState());
-        verify(investigationRepository).save(any(Investigation.class));
+        verify(investigationRepository, times(2)).save(any(Investigation.class));
     }
 
     @Test
     void openCase_assigns_officer_and_moves_alert_to_under_review() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.of(customer));
         when(investigationRepository.save(any())).thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
         service.openCase(100, "officer@bank.com", "URGENT");
 
         ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
         verify(alertRepository).save(alertCaptor.capture());
-        assertEquals("UNDER_REVIEW", alertCaptor.getValue().getStatus());
+        assertEquals(AlertStatus.UNDER_REVIEW, alertCaptor.getValue().getStatus());
         assertEquals("officer@bank.com", alertCaptor.getValue().getAssignedTo());
     }
 
@@ -115,7 +113,6 @@ class InvestigationServiceTest {
     void openCase_defaults_priority_to_medium_when_null() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.of(customer));
 
         ArgumentCaptor<Investigation> captor = ArgumentCaptor.forClass(Investigation.class);
         when(investigationRepository.save(captor.capture()))
@@ -123,7 +120,7 @@ class InvestigationServiceTest {
 
         service.openCase(100, "officer@bank.com", null);
 
-        assertEquals("MEDIUM", captor.getValue().getPriority());
+        assertEquals("MEDIUM", captor.getAllValues().get(0).getPriority());
     }
 
     @Test
@@ -149,10 +146,10 @@ class InvestigationServiceTest {
     }
 
     @Test
-    void openCase_returns_null_when_customer_not_found() {
+    void openCase_returns_null_when_customer_is_null() {
+        account.setCustomer(null);
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.empty());
 
         Investigation result = service.openCase(100, "officer@bank.com", "LOW");
 
@@ -164,7 +161,6 @@ class InvestigationServiceTest {
     void openCase_sets_opened_at_to_now() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.of(customer));
 
         ArgumentCaptor<Investigation> captor = ArgumentCaptor.forClass(Investigation.class);
         when(investigationRepository.save(captor.capture()))
@@ -172,15 +168,14 @@ class InvestigationServiceTest {
 
         service.openCase(100, "officer@bank.com", "MEDIUM");
 
-        assertNotNull(captor.getValue().getOpenedAt());
-        assertTrue(captor.getValue().getOpenedAt().isBefore(LocalDateTime.now().plusSeconds(1)));
+        assertNotNull(captor.getAllValues().get(0).getOpenedAt());
+        assertTrue(captor.getAllValues().get(0).getOpenedAt().isBefore(LocalDateTime.now().plusSeconds(1)));
     }
 
     @Test
     void openCase_links_alert_and_customer_to_investigation() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
-        when(customerRepository.findById(1)).thenReturn(Optional.of(customer));
 
         ArgumentCaptor<Investigation> captor = ArgumentCaptor.forClass(Investigation.class);
         when(investigationRepository.save(captor.capture()))
@@ -188,11 +183,11 @@ class InvestigationServiceTest {
 
         service.openCase(100, "officer@bank.com", "HIGH");
 
-        assertEquals(alert, captor.getValue().getAlert());
-        assertEquals(customer, captor.getValue().getCustomer());
+        assertEquals(alert, captor.getAllValues().get(0).getAlert());
+        assertEquals(customer, captor.getAllValues().get(0).getCustomer());
     }
 
-    // ── updateCaseStatus ─────────────────────────────────────────────────────
+    // updateCaseStatus
 
     @Test
     void updateCaseStatus_open_to_under_review_succeeds() {
@@ -233,7 +228,7 @@ class InvestigationServiceTest {
 
         ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
         verify(alertRepository).save(alertCaptor.capture());
-        assertEquals("SAR_FILED", alertCaptor.getValue().getStatus());
+        assertEquals(AlertStatus.SAR_FILED, alertCaptor.getValue().getStatus());
     }
 
     @Test
@@ -247,7 +242,7 @@ class InvestigationServiceTest {
 
         ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
         verify(alertRepository).save(alertCaptor.capture());
-        assertEquals("CLOSED", alertCaptor.getValue().getStatus());
+        assertEquals(AlertStatus.CLOSED, alertCaptor.getValue().getStatus());
     }
 
     @Test
@@ -320,8 +315,7 @@ class InvestigationServiceTest {
         assertEquals("Existing finding note.", result.getFindings());
     }
 
-    // ── All valid outcomes are handled on close ───────────────────────────────
-
+    // All valid outcomes are handled on close
     @ParameterizedTest
     @EnumSource(InvestigationOutcome.class)
     void all_outcomes_are_accepted_on_close(InvestigationOutcome outcome) {
@@ -393,8 +387,7 @@ class InvestigationServiceTest {
         assertNull(result);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
+    // Helper methods
     private Investigation buildSavedInvestigation(InvestigationState state) {
         Investigation inv = new Investigation();
         inv.setInvestigationId(1);
