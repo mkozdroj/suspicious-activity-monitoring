@@ -3,7 +3,7 @@ CREATE TABLE account (
     account_number      VARCHAR(40)     NOT NULL UNIQUE,
     customer_id         INT             NOT NULL,
     account_type        VARCHAR(20)     NOT NULL CHECK (account_type IN ('CURRENT', 'SAVINGS', 'TRADING', 'CUSTODY', 'CORRESPONDENT')),
-    currency            CHAR(3)         NOT NULL,
+    currency            VARCHAR(3)         NOT NULL,
     balance             DECIMAL(18,2)   NOT NULL DEFAULT 0.00,
     opened_date         DATE            NOT NULL,
     status              VARCHAR(10)     NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'FROZEN', 'CLOSED', 'RESTRICTED')),

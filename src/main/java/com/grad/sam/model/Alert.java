@@ -20,7 +20,7 @@ public class Alert {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "alert_id")
-    private Long alertId;
+    private Integer alertId;
 
     @Column(name = "alert_ref", nullable = false, unique = true, length = 15)
     private String alertRef;

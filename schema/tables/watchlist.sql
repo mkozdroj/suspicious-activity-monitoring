@@ -3,7 +3,7 @@ CREATE TABLE watchlist (
     list_type           VARCHAR(20)     NOT NULL CHECK (list_type IN ('OFAC', 'UN', 'EU', 'HMT', 'INTERPOL', 'INTERNAL', 'PEP')),
     entity_name         VARCHAR(120)    NOT NULL,
     entity_type         VARCHAR(20)     NOT NULL CHECK (entity_type IN ('INDIVIDUAL', 'ENTITY', 'VESSEL', 'AIRCRAFT')),
-    country             CHAR(2),
+    country             VARCHAR(2),
     date_of_birth       DATE,
     reason              VARCHAR(200)    NOT NULL,
     listed_date         DATE            NOT NULL,

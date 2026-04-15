@@ -24,7 +24,7 @@ public class Txn {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "txn_id")
-    private Long txnId;
+    private Integer txnId;
 
     @Column(name = "txn_ref", nullable = false, unique = true, length = 20)
     private String txnRef;

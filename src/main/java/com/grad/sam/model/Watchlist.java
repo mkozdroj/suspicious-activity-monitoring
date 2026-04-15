@@ -18,7 +18,7 @@ public class Watchlist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "watchlist_id")
-    private Long watchlistId;
+    private Integer watchlistId;
 
     // OFAC, UN, EU, HMT, INTERPOL, INTERNAL, PEP
     @Column(name = "list_type", nullable = false, length = 20)
