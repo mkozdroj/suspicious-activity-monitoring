@@ -22,4 +22,5 @@ public interface AlertRepository extends JpaRepository<Alert, Integer> {
     List<Alert> findByAssignedTo(String assignedTo);
 
     List<Alert> findByAlertScoreGreaterThanEqual(Short minScore);
+
 }
