@@ -1,5 +1,6 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.AlertStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,9 +47,9 @@ public class Alert {
     @Column(name = "alert_score", nullable = false)
     private Short alertScore;
 
-    // OPEN, UNDER_REVIEW, ESCALATED, CLOSED, SAR_FILED
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 15)
-    private String status = "OPEN";
+    private AlertStatus status = AlertStatus.OPEN;
 
     @Column(name = "assigned_to", length = 60)
     private String assignedTo;
