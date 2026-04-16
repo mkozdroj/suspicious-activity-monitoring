@@ -1,6 +1,7 @@
 package com.grad.sam.integration;
 
 import com.grad.sam.enums.RiskRating;
+import com.grad.sam.enums.WatchlistListType;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -104,7 +105,7 @@ class WatchlistMatchFlowIT {
         watchlistRepository.save(inactive);
 
         List<Watchlist> active = watchlistRepository.findByIsActive(true);
-        List<Watchlist> ofac = watchlistRepository.findByListType("OFAC");
+        List<Watchlist> ofac = watchlistRepository.findByListType(WatchlistListType.OFAC);
 
         assertEquals(1, active.size());
         assertEquals("Bank Melli Iran", active.get(0).getEntityName());
