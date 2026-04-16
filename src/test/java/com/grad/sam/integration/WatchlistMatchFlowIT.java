@@ -1,5 +1,6 @@
 package com.grad.sam.integration;
 
+import com.grad.sam.enums.MatchStatus;
 import com.grad.sam.enums.RiskRating;
 import com.grad.sam.enums.WatchlistListType;
 import com.grad.sam.model.*;
@@ -158,7 +159,7 @@ class WatchlistMatchFlowIT {
         match.setReviewedAt(LocalDateTime.now());
         watchlistMatchRepository.save(match);
 
-        List<WatchlistMatch> confirmed = watchlistMatchRepository.findByStatus("CONFIRMED");
+        List<WatchlistMatch> confirmed = watchlistMatchRepository.findByStatus(MatchStatus.CONFIRMED);
         assertEquals(1, confirmed.size());
         assertEquals("analyst@bank.com", confirmed.get(0).getReviewedBy());
     }
@@ -170,8 +171,8 @@ class WatchlistMatchFlowIT {
         watchlistMatchRepository.save(realMatch);
         watchlistMatchRepository.save(falsePositive);
 
-        List<WatchlistMatch> pending = watchlistMatchRepository.findByStatus("PENDING");
-        List<WatchlistMatch> fps = watchlistMatchRepository.findByStatus("FALSE_POSITIVE");
+        List<WatchlistMatch> pending = watchlistMatchRepository.findByStatus(MatchStatus.PENDING);
+        List<WatchlistMatch> fps = watchlistMatchRepository.findByStatus(MatchStatus.FALSE_POSITIVE);
 
         assertEquals(1, pending.size());
         assertEquals(1, fps.size());
