@@ -99,7 +99,7 @@ class InvestigationFlowIT {
         alert.setTxn(txn);
         alert.setTriggeredAt(LocalDateTime.now());
         alert.setAlertScore((short) 95);
-        alert.setStatus("OPEN");
+        alert.setStatus(AlertStatus.OPEN);
         alert.setNotes("PEP customer wired $75,000 to North Korea");
         alert = alertRepository.save(alert);
     }
@@ -180,7 +180,7 @@ class InvestigationFlowIT {
         investigationRepository.save(inv);
 
         // Update the linked alert status too
-        alert.setStatus("SAR_FILED");
+        alert.setStatus(AlertStatus.SAR_FILED);
         alertRepository.save(alert);
 
         Optional<Investigation> closed = investigationRepository.findByInvestigationRef("INV-00005");
@@ -189,8 +189,8 @@ class InvestigationFlowIT {
         assertEquals(InvestigationOutcome.SAR_FILED, closed.get().getOutcome());
         assertNotNull(closed.get().getClosedAt());
 
-        assertEquals("SAR_FILED", alertRepository.findByAlertRef("ALT-INV-001")
-                .map(Alert::getStatus).orElse(""));
+        assertEquals(AlertStatus.SAR_FILED, alertRepository.findByAlertRef("ALT-INV-001")
+                .map(Alert::getStatus).orElse(null));
     }
 
     @Test
@@ -270,7 +270,7 @@ class InvestigationFlowIT {
         a.setTxn(txn);
         a.setTriggeredAt(LocalDateTime.now());
         a.setAlertScore((short) 60);
-        a.setStatus("OPEN");
+        a.setStatus(AlertStatus.OPEN);
         return a;
     }
 }

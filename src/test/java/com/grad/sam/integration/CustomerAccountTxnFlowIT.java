@@ -1,6 +1,7 @@
 package com.grad.sam.integration;
 
 import com.grad.sam.enums.AlertSeverity;
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.RiskRating;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.model.*;
@@ -211,14 +212,14 @@ class CustomerAccountTxnFlowIT {
         alert.setTxn(txn);
         alert.setTriggeredAt(java.time.LocalDateTime.now());
         alert.setAlertScore((short) 80);
-        alert.setStatus("OPEN");
+        alert.setStatus(AlertStatus.OPEN);
         alert.setNotes("Transaction above $10,000 threshold to high-risk country");
         alert = alertRepository.save(alert);
 
         // Verify alert persisted correctly
         Optional<Alert> found = alertRepository.findByAlertRef("ALT-00001");
         assertTrue(found.isPresent());
-        assertEquals("OPEN", found.get().getStatus());
+        assertEquals(AlertStatus.OPEN, found.get().getStatus());
         assertEquals((short) 80, found.get().getAlertScore());
         assertEquals(account.getAccountId(), found.get().getAccount().getAccountId());
         assertEquals(txn.getTxnId(), found.get().getTxn().getTxnId());
@@ -228,13 +229,14 @@ class CustomerAccountTxnFlowIT {
     void open_alerts_for_account_can_be_queried() {
         Txn txn = txnRepository.save(buildTxn("TXN-002", new BigDecimal("20000.00"), "KP"));
 
-        Alert alert1 = buildAlert("ALT-00002", txn, "OPEN", (short) 75);
-        Alert alert2 = buildAlert("ALT-00003", txn, "CLOSED", (short) 40);
+
+        Alert alert1 = buildAlert("ALT-00002", txn, AlertStatus.OPEN, (short) 75);
+        Alert alert2 = buildAlert("ALT-00003", txn, AlertStatus.CLOSED, (short) 40);
         alertRepository.save(alert1);
         alertRepository.save(alert2);
 
-        List<Alert> openAlerts = alertRepository.findByStatus("OPEN");
-        List<Alert> closedAlerts = alertRepository.findByStatus("CLOSED");
+        List<Alert> openAlerts = alertRepository.findByStatus(AlertStatus.OPEN);
+        List<Alert> closedAlerts = alertRepository.findByStatus(AlertStatus.CLOSED);
 
         assertEquals(1, openAlerts.size());
         assertEquals("ALT-00002", openAlerts.get(0).getAlertRef());
@@ -245,8 +247,8 @@ class CustomerAccountTxnFlowIT {
     void high_score_alerts_are_returned_by_min_score_query() {
         Txn txn = txnRepository.save(buildTxn("TXN-003", new BigDecimal("30000.00"), "SY"));
 
-        alertRepository.save(buildAlert("ALT-LOW", txn, "OPEN", (short) 30));
-        alertRepository.save(buildAlert("ALT-HIGH", txn, "OPEN", (short) 90));
+        alertRepository.save(buildAlert("ALT-LOW",  txn, AlertStatus.OPEN, (short) 30));
+        alertRepository.save(buildAlert("ALT-HIGH", txn, AlertStatus.OPEN, (short) 90));
 
         List<Alert> highPriority = alertRepository.findByAlertScoreGreaterThanEqual((short) 70);
 
@@ -271,7 +273,7 @@ class CustomerAccountTxnFlowIT {
         return txn;
     }
 
-    private Alert buildAlert(String ref, Txn txn, String status, short score) {
+    private Alert buildAlert(String ref, Txn txn, AlertStatus status, short score) {
         Alert alert = new Alert();
         alert.setAlertRef(ref);
         alert.setAlertRule(alertRule);
