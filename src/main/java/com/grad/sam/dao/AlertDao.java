@@ -1,5 +1,6 @@
 package com.grad.sam.dao;
 
+import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.model.Alert;
 import com.grad.sam.repository.AlertRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -23,10 +24,10 @@ public class AlertDao {
     }
 
     public List<Alert> findOpenAlerts() {
-        return alertRepository.findByStatus("OPEN");
+        return alertRepository.findByStatus(AlertStatus.OPEN);
     }
 
-    public List<Alert> findByStatus(String status) {
+    public List<Alert> findByStatus(AlertStatus status) {
         return alertRepository.findByStatus(status);
     }
 
@@ -52,7 +53,7 @@ public class AlertDao {
         return saved;
     }
 
-    public void updateStatus(Integer alertId, String newStatus) {
+    public void updateStatus(Integer alertId, AlertStatus newStatus) {
         alertRepository.findById(alertId).ifPresentOrElse(alert -> {
             alert.setStatus(newStatus);
             alertRepository.save(alert);
@@ -63,8 +64,8 @@ public class AlertDao {
     public void assignTo(Integer alertId, String analystEmail) {
         alertRepository.findById(alertId).ifPresentOrElse(alert -> {
             alert.setAssignedTo(analystEmail);
-            if ("OPEN".equals(alert.getStatus())) {
-                alert.setStatus("UNDER_REVIEW");
+            if (AlertStatus.OPEN.equals(alert.getStatus())) {
+                alert.setStatus(AlertStatus.UNDER_REVIEW);
             }
             alertRepository.save(alert);
             log.info("Assigned alert {} to: {}", alertId, analystEmail);
