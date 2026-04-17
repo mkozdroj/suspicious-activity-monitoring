@@ -1,5 +1,8 @@
 package com.grad.sam.repository;
 
+import com.grad.sam.enums.TxnDirection;
+import com.grad.sam.enums.TxnStatus;
+import com.grad.sam.enums.TxnType;
 import com.grad.sam.model.Txn;
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,17 +27,17 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
 
     List<Txn> findByAccount_AccountIdAndTxnDateBetween(Integer accountId, LocalDate from, LocalDate to);
 
-    List<Txn> findByAccount_AccountIdAndStatus(Integer accountId, String status);
+    List<Txn> findByAccount_AccountIdAndStatus(Integer accountId, TxnStatus status);
 
-    List<Txn> findByStatus(String status);
+    List<Txn> findByStatus(TxnStatus status);
 
-    List<Txn> findByTxnType(String txnType);
+    List<Txn> findByTxnType(TxnType txnType);
 
-    List<Txn> findByDirection(String direction);
+    List<Txn> findByDirection(TxnDirection direction);
 
     List<Txn> findByCounterpartyCountry(String counterpartyCountry);
 
-    List<Txn> findByAmountUsdGreaterThanEqualAndStatus(BigDecimal minAmountUsd, String status);
+    List<Txn> findByAmountUsdGreaterThanEqualAndStatus(BigDecimal minAmountUsd, TxnStatus status);
 
     @Query("SELECT t FROM Txn t WHERE t.account.accountId = :accountId " +
             "AND t.txnId <> :excludeTxnId " +
@@ -49,5 +52,5 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
     @Transactional
     @Query("UPDATE Txn t SET t.status = :status WHERE t.txnId = :txnId")
     int updateStatus(@Param("txnId") Integer txnId,
-                     @Param("status") String status);
+                     @Param("status") TxnStatus status);
 }

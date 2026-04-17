@@ -1,5 +1,7 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.WatchlistEntityType;
+import com.grad.sam.enums.WatchlistListType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,14 +24,14 @@ public class Watchlist {
 
     // OFAC, UN, EU, HMT, INTERPOL, INTERNAL, PEP
     @Column(name = "list_type", nullable = false, length = 20)
-    private String listType;
+    private WatchlistListType listType;
 
     @Column(name = "entity_name", nullable = false, length = 120)
     private String entityName;
 
     // INDIVIDUAL, ENTITY, VESSEL, AIRCRAFT
     @Column(name = "entity_type", nullable = false, length = 20)
-    private String entityType;
+    private WatchlistEntityType entityType;
 
     @Column(name = "country", length = 2)
     private String country;
