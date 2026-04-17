@@ -1,9 +1,6 @@
 package com.grad.sam.service;
 
-import com.grad.sam.enums.AlertStatus;
-import com.grad.sam.enums.InvestigationOutcome;
-import com.grad.sam.enums.InvestigationState;
-import com.grad.sam.enums.RiskRating;
+import com.grad.sam.enums.*;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.InvestigationRepository;
@@ -50,9 +47,9 @@ class InvestigationServiceTest {
         customer.setFullName("Ivan Petrov");
         customer.setNationality("RU");
         customer.setCountryOfResidence("RU");
-        customer.setCustomerType("INDIVIDUAL");
+        customer.setCustomerType(CustomerType.INDIVIDUAL);
         customer.setRiskRating(RiskRating.HIGH);
-        customer.setKycStatus("VERIFIED");
+        customer.setKycStatus(KycStatus.VERIFIED);
         customer.setOnboardedDate(LocalDate.now().minusYears(2));
         customer.setIsPep(true);
         customer.setIsActive(true);
@@ -60,9 +57,9 @@ class InvestigationServiceTest {
         account = new Account();
         account.setAccountId(10);
         account.setAccountNumber("ACC-0010");
-        account.setAccountType("CURRENT");
+        account.setAccountType(AccountType.CURRENT);
         account.setCurrency("USD");
-        account.setStatus("ACTIVE");
+        account.setStatus(AccountStatus.ACTIVE);
         account.setCustomer(customer);
 
         AlertRule alertRule = new AlertRule();
@@ -396,7 +393,7 @@ class InvestigationServiceTest {
         inv.setCustomer(customer);
         inv.setOpenedBy("officer@bank.com");
         inv.setOpenedAt(LocalDateTime.now());
-        inv.setPriority("HIGH");
+        inv.setPriority(Priority.HIGH);
         inv.setState(state);
         return inv;
     }

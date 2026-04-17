@@ -1,8 +1,6 @@
 package com.grad.sam.integration;
 
-import com.grad.sam.enums.MatchStatus;
-import com.grad.sam.enums.RiskRating;
-import com.grad.sam.enums.WatchlistListType;
+import com.grad.sam.enums.*;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,9 +43,9 @@ class WatchlistMatchFlowIT {
         customer.setFullName("Test User");
         customer.setNationality("PL");
         customer.setCountryOfResidence("PL");
-        customer.setCustomerType("INDIVIDUAL");
+        customer.setCustomerType(CustomerType.INDIVIDUAL);
         customer.setRiskRating(RiskRating.LOW);
-        customer.setKycStatus("VERIFIED");
+        customer.setKycStatus(KycStatus.VERIFIED);
         customer.setOnboardedDate(LocalDate.now());
         customer.setIsPep(false);
         customer.setIsActive(true);
@@ -55,11 +53,11 @@ class WatchlistMatchFlowIT {
 
         account = new Account();
         account.setAccountNumber("ACC-WL-001");
-        account.setAccountType("CURRENT");
+        account.setAccountType(AccountType.CURRENT);
         account.setCurrency("USD");
         account.setBalance(BigDecimal.ZERO);
         account.setOpenedDate(LocalDate.now());
-        account.setStatus("ACTIVE");
+        account.setStatus(AccountStatus.ACTIVE);
         account.setBranchCode("LDN-01");
         account.setCustomer(customer);
         account = accountRepository.save(account);
@@ -67,14 +65,14 @@ class WatchlistMatchFlowIT {
         // Transaction going to a sanctioned country
         txn = new Txn();
         txn.setTxnRef("TXN-WL-001");
-        txn.setTxnType("WIRE");
-        txn.setDirection("DR");
+        txn.setTxnType(TxnType.WIRE);
+        txn.setDirection(TxnDirection.DR);
         txn.setAmount(new BigDecimal("25000.00"));
         txn.setCurrency("USD");
         txn.setAmountUsd(new BigDecimal("25000.00"));
         txn.setTxnDate(LocalDate.now());
         txn.setValueDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setCounterpartyCountry("IR");
         txn.setCounterpartyAccount("IR-ACC-99999");
         txn.setCounterpartyBank("Bank Melli Iran");
@@ -83,9 +81,9 @@ class WatchlistMatchFlowIT {
 
         // Sanctioned entity on OFAC list
         sanctionedEntity = new Watchlist();
-        sanctionedEntity.setListType("OFAC");
+        sanctionedEntity.setListType(ListType.OFAC);
         sanctionedEntity.setEntityName("Bank Melli Iran");
-        sanctionedEntity.setEntityType("ENTITY");
+        sanctionedEntity.setEntityType(WatchlistEntityType.INDIVIDUAL);
         sanctionedEntity.setCountry("IR");
         sanctionedEntity.setReason("Designated under Iran sanctions programme");
         sanctionedEntity.setListedDate(LocalDate.of(2010, 6, 16));
@@ -97,9 +95,9 @@ class WatchlistMatchFlowIT {
     void watchlist_entry_is_persisted_and_active_entries_queryable() {
         // Add an inactive entry
         Watchlist inactive = new Watchlist();
-        inactive.setListType("UN");
+        inactive.setListType(ListType.UN);
         inactive.setEntityName("Old Delisted Entity");
-        inactive.setEntityType("INDIVIDUAL");
+        inactive.setEntityType(WatchlistEntityType.INDIVIDUAL);
         inactive.setReason("Removed from list");
         inactive.setListedDate(LocalDate.of(2005, 1, 1));
         inactive.setIsActive(false);
@@ -126,11 +124,11 @@ class WatchlistMatchFlowIT {
         WatchlistMatch match = new WatchlistMatch();
         match.setTxn(txn);
         match.setWatchlist(sanctionedEntity);
-        match.setMatchType("NAME");
+        match.setMatchType(MatchType.NAME);
         match.setMatchScore(new BigDecimal("95.50"));
         match.setMatchedField("counterparty_bank");
         match.setMatchedValue("Bank Melli Iran");
-        match.setStatus("PENDING");
+        match.setStatus(MatchStatus.PENDING);
         match = watchlistMatchRepository.save(match);
 
         assertNotNull(match.getMatchId());
@@ -146,15 +144,15 @@ class WatchlistMatchFlowIT {
         WatchlistMatch match = new WatchlistMatch();
         match.setTxn(txn);
         match.setWatchlist(sanctionedEntity);
-        match.setMatchType("ACCOUNT");
+        match.setMatchType(MatchType.ACCOUNT);
         match.setMatchScore(new BigDecimal("88.00"));
         match.setMatchedField("counterparty_account");
         match.setMatchedValue("IR-ACC-99999");
-        match.setStatus("PENDING");
+        match.setStatus(MatchStatus.PENDING);
         match = watchlistMatchRepository.save(match);
 
         // Analyst reviews and confirms
-        match.setStatus("CONFIRMED");
+        match.setStatus(MatchStatus.CONFIRMED);
         match.setReviewedBy("analyst@bank.com");
         match.setReviewedAt(LocalDateTime.now());
         watchlistMatchRepository.save(match);
@@ -182,9 +180,9 @@ class WatchlistMatchFlowIT {
     void multiple_matches_for_same_transaction_are_stored() {
         // Same txn can match multiple watchlist entries (e.g. NAME + COUNTRY)
         Watchlist secondEntry = new Watchlist();
-        secondEntry.setListType("EU");
+        secondEntry.setListType(ListType.EU);
         secondEntry.setEntityName("Iran Central Bank");
-        secondEntry.setEntityType("ENTITY");
+        secondEntry.setEntityType(WatchlistEntityType.ENTITY);
         secondEntry.setCountry("IR");
         secondEntry.setReason("EU sanctions");
         secondEntry.setListedDate(LocalDate.of(2012, 3, 23));
@@ -196,11 +194,11 @@ class WatchlistMatchFlowIT {
         WatchlistMatch countryMatch = new WatchlistMatch();
         countryMatch.setTxn(txn);
         countryMatch.setWatchlist(secondEntry);
-        countryMatch.setMatchType("COUNTRY");
+        countryMatch.setMatchType(MatchType.COUNTRY);
         countryMatch.setMatchScore(new BigDecimal("70.00"));
         countryMatch.setMatchedField("counterparty_country");
         countryMatch.setMatchedValue("IR");
-        countryMatch.setStatus("PENDING");
+        countryMatch.setStatus(MatchStatus.PENDING);
         watchlistMatchRepository.save(countryMatch);
 
         List<WatchlistMatch> allForTxn = watchlistMatchRepository.findByTxn_TxnId(txn.getTxnId());
@@ -213,11 +211,11 @@ class WatchlistMatchFlowIT {
         WatchlistMatch m = new WatchlistMatch();
         m.setTxn(txn);
         m.setWatchlist(sanctionedEntity);
-        m.setMatchType(matchType);
+        m.setMatchType(MatchType.valueOf(matchType));
         m.setMatchScore(new BigDecimal(score));
         m.setMatchedField("counterparty_bank");
         m.setMatchedValue("Bank Melli Iran");
-        m.setStatus(status);
+        m.setStatus(MatchStatus.valueOf(status));
         return m;
     }
 }
