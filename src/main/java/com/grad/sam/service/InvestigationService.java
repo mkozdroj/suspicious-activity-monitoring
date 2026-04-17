@@ -56,7 +56,7 @@ public class InvestigationService {
     @Transactional
     public Investigation openCase(@NotNull @Positive Integer alertId,
                                   @NotBlank String assignedOfficer,
-                                  @NotBlank Priority priority) {          // ⚠️ @NotBlank on an enum
+                                  @NotNull Priority priority) {          // ⚠️ @NotBlank on an enum
 
         Alert alert = alertRepository.findById(alertId)
                 .orElseThrow(() -> new DataNotFoundException(
@@ -79,7 +79,7 @@ public class InvestigationService {
         investigation.setCustomer(customer);
         investigation.setOpenedBy(assignedOfficer);
         investigation.setOpenedAt(LocalDateTime.now());
-        investigation.setPriority(Priority.MEDIUM);
+        investigation.setPriority(priority);
         investigation.setState(InvestigationState.OPEN);
 
         alert.setStatus(AlertStatus.UNDER_REVIEW);

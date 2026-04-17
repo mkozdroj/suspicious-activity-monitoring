@@ -4,6 +4,7 @@ import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.RuleCategory;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -17,15 +18,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlertResponseDto {
-    @NotBlank(message = "Alert ID is required")
+    @NotNull(message = "Alert ID is required")
     @Positive(message = "Alert ID must be positive")
     private Integer alertId;
 
-    @NotBlank(message = "Transaction ID is required")
+    @NotNull(message = "Transaction ID is required")
     @Positive(message = "Transaction ID must be positive")
     private Integer txnId;
 
-    @NotBlank(message = "Transaction amount is required")
+    @NotNull(message = "Transaction amount is required")
     @Positive(message = "Transaction amount must be positive")
     private BigDecimal txnAmount;
 
@@ -33,10 +34,10 @@ public class AlertResponseDto {
     @Pattern(regexp = "^[A-Z]{3}$", message = "Transaction currency must be a valid 3-letter ISO code")
     private String txnCurrency;
 
-    @NotBlank(message = "Transaction date is required")
+    @NotNull(message = "Transaction date is required")
     private LocalDateTime txnDate;
 
-    @NotBlank(message = "Account ID is required")
+    @NotNull(message = "Account ID is required")
     @Positive(message = "Account ID must be positive")
     private Integer accountId;
 
@@ -44,20 +45,20 @@ public class AlertResponseDto {
     @Pattern(regexp = "^[A-Z][a-zA-Z'-]+ [A-Z][a-zA-Z'-]+$", message = "Customer name must be in the format 'First Last' with proper capitalization")
     private String customerName;
 
-    @NotBlank(message = "Rule ID is required")
+    @NotNull(message = "Rule ID is required")
     @Positive(message = "Rule ID must be positive")
     private Integer ruleId;
 
     @NotBlank(message = "Rule category is required")
     private RuleCategory ruleCategory;
 
-    @NotBlank(message = "Alert severity is required")
+    @NotNull(message = "Alert severity is required")
     private AlertSeverity severity;
 
-    @NotBlank(message = "Alert status is required")
+    @NotNull(message = "Alert status is required")
     private AlertStatus status;
 
-    @NotBlank(message = "Raised at timestamp is required")
+    @NotNull(message = "Raised at timestamp is required")
     private LocalDateTime raisedAt;
 
     @NotBlank(message = "Assigned to is required")

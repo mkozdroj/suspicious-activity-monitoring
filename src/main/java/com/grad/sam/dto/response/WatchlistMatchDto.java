@@ -5,6 +5,7 @@ import com.grad.sam.enums.MatchType;
 import com.grad.sam.enums.WatchlistEntityType;
 import com.grad.sam.enums.WatchlistListType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,30 +18,30 @@ import java.math.BigInteger;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WatchlistMatchDto {
-    @NotBlank(message = "Match ID is required")
+    @NotNull(message = "Match ID is required")
     @Positive(message = "Match ID must be positive")
     private Integer matchId;
 
-    @NotBlank(message = "Watchlist ID is required")
+    @NotNull(message = "Watchlist ID is required")
     @Positive(message = "Watchlist ID must be positive")
     private Integer watchlistId;
-    
+
     @NotBlank(message = "Entity name is required")
     private String entityName;
-    
-    @NotBlank(message = "Entity type is required")
+
+    @NotNull(message = "Entity type is required")
     private WatchlistEntityType entityType;
-    
-    @NotBlank(message = "List source is required")
+
+    @NotNull(message = "List source is required")
     private WatchlistListType listSource;
-    
-    @NotBlank(message = "Match score is required")
+
+    @NotNull(message = "Match score is required")
     @Range(min = 0, max = 100, message = "Match score must be between 0 and 100")
     private BigInteger matchScore;
-    
-    @NotBlank(message = "Match type is required")
+
+    @NotNull(message = "Match type is required")
     private MatchType matchType;
-    
-    @NotBlank(message = "Match status is required")
+
+    @NotNull(message = "Match status is required")
     private MatchStatus status;
 }
