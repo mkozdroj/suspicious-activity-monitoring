@@ -6,3 +6,4 @@ public enum AccountStatus {
     CLOSED,
     RESTRICTED
 }
+
