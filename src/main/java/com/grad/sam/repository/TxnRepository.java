@@ -11,9 +11,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,7 +21,7 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
 
     default List<Txn> findRecentByAccount(Integer accountId, Integer excludeTxnId, int lookbackDays) {
         LocalDate from = LocalDate.now().minusDays(lookbackDays);
-        return findRecentByAccount(accountId, excludeTxnId, from);
+        return findRecentByAccount(accountId, excludeTxnId, from, TxnStatus.COMPLETED);
     }
 
     Optional<Txn> findByTxnRef(String txnRef);
@@ -50,38 +47,16 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
     @Query("SELECT t FROM Txn t WHERE t.account.accountId = :accountId " +
             "AND t.txnId <> :excludeTxnId " +
             "AND t.txnDate >= :from " +
-            "AND t.status = 'COMPLETED' " +
+            "AND t.status = :status " +
             "ORDER BY t.txnDate DESC")
     List<Txn> findRecentByAccount(@Param("accountId") Integer accountId,
                                   @Param("excludeTxnId") Integer excludeTxnId,
-                                  @Param("from") LocalDate from);
+                                  @Param("from") LocalDate from,
+                                  @Param("status") TxnStatus status);
 
     @Modifying
     @Transactional
     @Query("UPDATE Txn t SET t.status = :status WHERE t.txnId = :txnId")
     int updateStatus(@Param("txnId") Integer txnId,
                      @Param("status") TxnStatus status);
-
-    default String getStatus(Integer txnId) {
-        return findById(txnId)
-                .map(txn -> txn.getStatus().name())
-                .orElseThrow(() -> new IllegalArgumentException("Transaction " + txnId + " not found."));
-    }
-
-    default Txn saveTxn(Txn txn) {
-        Logger log = LoggerFactory.getLogger(TxnRepository.class);
-        Txn saved = save(txn);
-        log.info("Saved txn: {} (id: {})", saved.getTxnRef(), saved.getTxnId());
-        return saved;
-    }
-
-    default void updateTxnStatus(Integer txnId, TxnStatus status) {
-        Logger log = LoggerFactory.getLogger(TxnRepository.class);
-        int rows = updateStatus(txnId, status);
-        if (rows > 0) {
-            log.info("Updated txn {} status to {}", txnId, status);
-        } else {
-            log.warn("Transaction {} not found for status update", txnId);
-        }
-    }
 }

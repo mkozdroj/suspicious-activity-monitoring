@@ -2,6 +2,7 @@ package com.grad.sam.repository;
 
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
+import com.grad.sam.enums.Priority;
 import com.grad.sam.model.Investigation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -24,5 +25,5 @@ public interface InvestigationRepository extends JpaRepository<Investigation, In
 
     List<Investigation> findByOpenedBy(String openedBy);
 
-    List<Investigation> findByPriority(String priority);
+    List<Investigation> findByPriority(Priority priority);
 }

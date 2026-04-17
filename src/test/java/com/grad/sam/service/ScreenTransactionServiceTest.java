@@ -23,12 +23,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link ScreenTransactionService}.
- *
- * <p>Covers: returns triggered alerts, returns empty list on no match,
- * 404 on missing transaction, 404 on missing account, delegates to rule engine.</p>
- */
 @ExtendWith(MockitoExtension.class)
 class ScreenTransactionServiceTest {
 
@@ -67,7 +61,7 @@ class ScreenTransactionServiceTest {
         txn.setAccount(account);
     }
 
-    // ── Happy path ────────────────────────────────────────────────────────────
+    // Happy path
 
     @Test
     void returns_triggered_alerts_when_rules_fire() {
@@ -137,15 +131,13 @@ class ScreenTransactionServiceTest {
         assertEquals("ALT-001", result.get(0).getAlertRef());
     }
 
-    // ── Error paths ───────────────────────────────────────────────────────────
-
+    // Error paths
     @Test
-    void returns_empty_list_when_transaction_not_found() {
+    void throws_when_transaction_not_found() {
         when(txnRepository.findById(999)).thenReturn(Optional.empty());
 
-        List<Alert> result = service.screenTransaction(999);
-
-        assertTrue(result.isEmpty());
+        assertThrows(com.grad.sam.exception.DataNotFoundException.class,
+                () -> service.screenTransaction(999));
     }
 
 
@@ -153,12 +145,21 @@ class ScreenTransactionServiceTest {
     void does_not_call_rule_engine_when_transaction_missing() {
         when(txnRepository.findById(999)).thenReturn(Optional.empty());
 
-        service.screenTransaction(999);
+        assertThrows(com.grad.sam.exception.DataNotFoundException.class,
+                () -> service.screenTransaction(999));
 
         verify(ruleEngineService, never()).screenTransaction(any(), any());
     }
 
     // AML domain scenarios
+    @Test
+    void screenTransaction_throws_when_transaction_has_no_account_current_behavior() {
+        txn.setAccount(null);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(NullPointerException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
 
     @Test
     void high_value_pep_transaction_triggers_alert_from_multiple_rules() {

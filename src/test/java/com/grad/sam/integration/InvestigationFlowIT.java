@@ -229,8 +229,8 @@ class InvestigationFlowIT {
         medium.setState(InvestigationState.OPEN);
         investigationRepository.save(medium);
 
-        List<Investigation> urgent = investigationRepository.findByPriority("URGENT");
-        List<Investigation> mediumList = investigationRepository.findByPriority("MEDIUM");
+        List<Investigation> urgent = investigationRepository.findByPriority(Priority.URGENT);
+        List<Investigation> mediumList = investigationRepository.findByPriority(Priority.MEDIUM);
 
         assertEquals(1, urgent.size());
         assertEquals("INV-URGENT", urgent.get(0).getInvestigationRef());

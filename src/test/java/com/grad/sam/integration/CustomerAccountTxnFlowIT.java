@@ -86,7 +86,7 @@ class CustomerAccountTxnFlowIT {
         assertTrue(found.isPresent());
         assertEquals("Jan Kowalski", found.get().getFullName());
         assertEquals(RiskRating.MEDIUM, found.get().getRiskRating());
-        assertEquals("VERIFIED", found.get().getKycStatus());
+        assertEquals(KycStatus.VERIFIED, found.get().getKycStatus());
     }
 
     @Test
@@ -122,7 +122,7 @@ class CustomerAccountTxnFlowIT {
 
         assertEquals(1, accounts.size());
         assertEquals("ACC-PL-00001", accounts.get(0).getAccountNumber());
-        assertEquals("ACTIVE", accounts.get(0).getStatus());
+        assertEquals(AccountStatus.ACTIVE, accounts.get(0).getStatus());
     }
 
     @Test
