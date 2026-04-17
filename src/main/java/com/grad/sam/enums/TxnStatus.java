@@ -6,5 +6,9 @@ public enum TxnStatus {
     SCREENED,
     BLOCKED,
     REVERSED,
-    FAILED
+    FAILED;
+
+    public boolean isScreenable() {
+        return this == COMPLETED || this == PENDING;
+    }
 }
