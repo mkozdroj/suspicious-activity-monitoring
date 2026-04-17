@@ -30,7 +30,7 @@ public class ScreeningResultDto {
     @NotBlank(message = "Account number is required")
     private TxnStatus txnStatus;
 
-    @NotBlank(message = "Match count is required")
+    @NotNull(message = "Match count is required")
     @Positive(message = "Match count must be positive")
     private Integer matchCount;
 
