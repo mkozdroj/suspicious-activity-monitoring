@@ -15,7 +15,6 @@ public class GeographyRule implements AmlRule {
 
     private List<String> highRiskCountries = List.of("IR", "KP", "SY", "CU", "MM", "BY", "RU", "VE");
 
-    // Setter required for @ConfigurationProperties binding
     public void setHighRiskCountries(List<String> highRiskCountries) {
         this.highRiskCountries = highRiskCountries;
     }

@@ -1,12 +1,13 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.AlertRuleDao;
-import com.grad.sam.dao.TxnDao;
 import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.RuleCategory;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
@@ -35,8 +36,8 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 class RuleEngineServiceTest {
 
-    @Mock private AlertRuleDao alertRuleDao;
-    @Mock private TxnDao txnDao;
+    @Mock private AlertRuleRepository alertRuleRepository;
+    @Mock private TxnRepository txnRepository;
     @Mock private DataSource dataSource;
 
     @Mock private Connection raiseAlertConnection;
@@ -61,7 +62,7 @@ class RuleEngineServiceTest {
         currentTxn.setAmountUsd(new BigDecimal("15000.00"));
         currentTxn.setAmount(new BigDecimal("15000.00"));
         currentTxn.setCurrency("USD");
-        currentTxn.setStatus("COMPLETED");
+        currentTxn.setStatus(TxnStatus.COMPLETED);
     }
 
     @Test
@@ -71,11 +72,11 @@ class RuleEngineServiceTest {
         AlertRule activeRule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
         AmlRule mockImpl = mockRuleThatFires(RuleCategory.VELOCITY, activeRule, "Large txn detected");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(activeRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(mockImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -90,11 +91,11 @@ class RuleEngineServiceTest {
         AlertRule activeRule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
         AmlRule mockImpl = mockRuleThatFires(RuleCategory.VELOCITY, activeRule, "Large txn");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(activeRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(mockImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl));
 
         service.screenTransaction(currentTxn, account);
 
@@ -110,10 +111,10 @@ class RuleEngineServiceTest {
     void calls_screen_transaction_proc_after_evaluation() throws Exception {
         stubScreenTransactionOnly();
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
 
         service.screenTransaction(currentTxn, account);
 
@@ -126,10 +127,10 @@ class RuleEngineServiceTest {
     void returns_empty_list_when_no_active_rules() throws Exception {
         stubScreenTransactionOnly();
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -143,10 +144,10 @@ class RuleEngineServiceTest {
         AlertRule unknownCategoryRule = buildAlertRule(2, "SMU-001", RuleCategory.SMURFING, 30);
         AmlRule velocityOnlyImpl = mockRuleImplCategoryOnly(RuleCategory.VELOCITY);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(unknownCategoryRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(unknownCategoryRule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(velocityOnlyImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(velocityOnlyImpl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -167,11 +168,11 @@ class RuleEngineServiceTest {
 
         AmlRule goodImpl = mockRuleThatFires(RuleCategory.GEOGRAPHY, goodRule, "High-risk country");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(badRule, goodRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(badRule, goodRule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(55L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(faultyImpl, goodImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(faultyImpl, goodImpl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -184,11 +185,11 @@ class RuleEngineServiceTest {
         AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
         AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Large txn");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(dataSource.getConnection()).thenThrow(new RuntimeException("DB failure"));
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -202,10 +203,10 @@ class RuleEngineServiceTest {
         AlertRule rule = buildAlertRule(1, "NO-CAT", RuleCategory.VELOCITY, 30);
         rule.setRuleCategory(null);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -219,14 +220,14 @@ class RuleEngineServiceTest {
         AlertRule rule1 = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 7);
         AlertRule rule2 = buildAlertRule(2, "GEO-001", RuleCategory.GEOGRAPHY, 45);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule1, rule2));
-        when(txnDao.findRecentByAccount(1, 42, 45)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule1, rule2));
+        when(txnRepository.findRecentByAccount(1, 42, 45)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
 
         service.screenTransaction(currentTxn, account);
 
-        verify(txnDao).findRecentByAccount(1, 42, 45);
+        verify(txnRepository).findRecentByAccount(1, 42, 45);
     }
 
     @Test
@@ -238,15 +239,15 @@ class RuleEngineServiceTest {
 
         AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Large txn");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         service.screenTransaction(currentTxn, account);
 
-        verify(txnDao).findRecentByAccount(1, 42, 30);
+        verify(txnRepository).findRecentByAccount(1, 42, 30);
     }
 
     @Test
@@ -259,11 +260,11 @@ class RuleEngineServiceTest {
         AmlRule impl1 = mockRuleThatFires(RuleCategory.VELOCITY, rule1, "Large txn");
         AmlRule impl2 = mockRuleThatFires(RuleCategory.GEOGRAPHY, rule2, "High-risk country");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule1, rule2));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule1, rule2));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(101L, 102L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl1, impl2));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl1, impl2));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -281,10 +282,10 @@ class RuleEngineServiceTest {
         when(impl.getSupportedCategory()).thenReturn(RuleCategory.VELOCITY.name());
         when(impl.evaluate(any(RuleContext.class), eq(rule))).thenReturn(Optional.empty());
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -299,11 +300,11 @@ class RuleEngineServiceTest {
         AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
         AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Duplicate alert");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(-1L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -319,11 +320,11 @@ class RuleEngineServiceTest {
 
         AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, longReason);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(88L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         service.screenTransaction(currentTxn, account);
 
@@ -342,11 +343,11 @@ class RuleEngineServiceTest {
         AlertRule rule = buildAlertRule(10, category.name() + "-001", category, 30);
         AmlRule impl = mockRuleThatFires(category, rule, "AML hit: " + category.name());
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(200L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -360,19 +361,17 @@ class RuleEngineServiceTest {
     void inactive_rule_is_never_evaluated() throws Exception {
         stubScreenTransactionOnly();
 
-        // DAO returns only active rules — inactive ones are filtered out before reaching service
-        // This test verifies the service works correctly when DAO returns empty (all rules inactive)
         AlertRule inactiveRule = buildAlertRule(99, "STR-INACTIVE", RuleCategory.STRUCTURING, 30);
         inactiveRule.setIsActive(false);
 
         AmlRule impl = mock(AmlRule.class);
         when(impl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
 
-        // findActiveRules returns empty — inactive rule was filtered by the DAO/repository
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        // findByIsActiveTrue returns empty — inactive rule was filtered by the repository
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -396,11 +395,11 @@ class RuleEngineServiceTest {
         String expectedReason = "PEP customer matched OFAC watchlist entry — counterparty in KP";
         AmlRule watchlistImpl = mockRuleThatFires(RuleCategory.WATCHLIST, watchlistRule, expectedReason);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(watchlistRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(watchlistRule));
+        when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(300L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(watchlistImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(watchlistImpl));
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -474,3 +473,4 @@ class RuleEngineServiceTest {
         return impl;
     }
 }
+

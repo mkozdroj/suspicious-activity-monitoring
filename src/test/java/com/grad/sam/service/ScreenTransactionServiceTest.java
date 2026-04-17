@@ -2,6 +2,7 @@ package com.grad.sam.service;
 
 
 import com.grad.sam.enums.AlertStatus;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.TxnRepository;
@@ -62,7 +63,7 @@ class ScreenTransactionServiceTest {
         txn.setAmount(new BigDecimal("15000.00"));
         txn.setCurrency("USD");
         txn.setTxnDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setAccount(account);
     }
 

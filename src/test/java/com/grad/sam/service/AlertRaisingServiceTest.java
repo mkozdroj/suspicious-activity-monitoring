@@ -1,9 +1,9 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.AlertRuleDao;
-import com.grad.sam.dao.TxnDao;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.model.*;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
@@ -28,9 +28,10 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 class AlertRaisingServiceTest {
 
-    @Mock private AlertRuleDao alertRuleDao;
-    @Mock private TxnDao txnDao;
+    @Mock private AlertRuleRepository alertRuleRepository;
+    @Mock private TxnRepository txnRepository;
     @Mock private DataSource dataSource;
+
 
     @Mock private Connection raiseConn;
     @Mock private Connection screenConn;
@@ -62,11 +63,11 @@ class AlertRaisingServiceTest {
         AlertRule rule = buildRule();
         AmlRule impl = mockRuleFires(rule, "Large txn");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
         when(raiseStmt.getLong(4)).thenReturn(100L);
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(txn, account);
 
@@ -85,11 +86,11 @@ class AlertRaisingServiceTest {
         AlertRule rule = buildRule();
         AmlRule impl = mockRuleFires(rule, "Duplicate txn");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
         when(raiseStmt.getLong(4)).thenReturn(-1L); // DUPLICATE
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
 
         List<Long> result = service.screenTransaction(txn, account);
 
@@ -103,10 +104,10 @@ class AlertRaisingServiceTest {
         when(dataSource.getConnection()).thenReturn(screenConn);
         when(screenConn.prepareCall("{CALL screen_transaction(?)}")).thenReturn(screenStmt);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
 
         service.screenTransaction(txn, account);
 
