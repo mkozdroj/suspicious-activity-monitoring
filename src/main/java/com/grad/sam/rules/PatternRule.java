@@ -28,7 +28,6 @@ public class PatternRule implements AmlRule {
 
         BigDecimal currentAmount = context.getTxn().getAmountUsd();
 
-        // Combine window txns with current txn and count occurrences per amount
         Map<BigDecimal, Long> frequencyMap = Stream.concat(
                         context.getRecentTxns().stream().map(Txn::getAmountUsd),
                         Stream.of(currentAmount))

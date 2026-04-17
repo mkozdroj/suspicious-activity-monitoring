@@ -1,7 +1,5 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.AlertRuleDao;
-import com.grad.sam.dao.TxnDao;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
@@ -20,22 +18,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 
 @Slf4j
 @Service
 public class RuleEngineService {
 
-    private final AlertRuleDao alertRuleDao;
-    private final TxnDao txnDao;
+    private final AlertRuleRepository alertRuleRepository;
+    private final TxnRepository txnRepository;
     private final DataSource dataSource;
     private final Map<String, AmlRule> rulesByCategory;
 
-    public RuleEngineService(AlertRuleDao alertRuleDao,
-                             TxnDao txnDao,
+    public RuleEngineService(AlertRuleRepository alertRuleRepository,
+                             TxnRepository txnRepository,
                              DataSource dataSource,
                              List<AmlRule> rules) {
-        this.alertRuleDao = alertRuleDao;
-        this.txnDao = txnDao;
+        this.alertRuleRepository = alertRuleRepository;
+        this.txnRepository = txnRepository;
         this.dataSource = dataSource;
         this.rulesByCategory = rules.stream()
                 .collect(Collectors.toMap(
@@ -44,17 +44,13 @@ public class RuleEngineService {
                         (existing, replacement) -> existing));
     }
 
-    /**
-     * Main entry point — screens a single transaction against all active rules.
-     * Returns the list of alert IDs raised (empty if no rules fired).
-     */
     @Transactional
     public List<Long> screenTransaction(Txn txn, Account account) {
 
-        // 1. load all active rules from DB via DAO
-        List<AlertRule> activeRules = alertRuleDao.findActiveRules();
+        // 1. load all active rules
+        List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
 
-        // 2. find the longest lookback window needed across all rules
+        // 2. find the longest lookback window
         int maxLookback = activeRules.stream()
                 .mapToInt(r -> r.getLookbackDays() != null ? r.getLookbackDays() : 30)
                 .max()
@@ -62,7 +58,7 @@ public class RuleEngineService {
 
         // 3. fetch recent transactions for the account within that window
         //    txn.getTxnId() is Integer — passed directly to TxnDao
-        List<Txn> recentTxns = txnDao.findRecentByAccount(
+        List<Txn> recentTxns = txnRepository.findRecentByAccount(
                 account.getAccountId(), txn.getTxnId(), maxLookback);
 
         // 4. build the shared context object for all rule evaluations

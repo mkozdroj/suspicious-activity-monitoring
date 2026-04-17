@@ -1,6 +1,5 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.TxnDao;
 import com.grad.sam.enums.MatchStatus;
 import com.grad.sam.enums.MatchType;
 import com.grad.sam.enums.TxnStatus;
@@ -8,6 +7,7 @@ import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.Txn;
 import com.grad.sam.model.Watchlist;
 import com.grad.sam.model.WatchlistMatch;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.repository.WatchlistMatchRepository;
 import com.grad.sam.repository.WatchlistRepository;
 import jakarta.validation.Valid;
@@ -30,18 +30,18 @@ public class WatchlistScreeningService {
 
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;
-    private final TxnDao transactionDao;
+    private final TxnRepository txnRepository;
     private final AlertService alertService;
 
     public WatchlistScreeningService(
             WatchlistRepository watchlistRepository,
             WatchlistMatchRepository watchlistMatchRepository,
-            TxnDao transactionDao,
+            TxnRepository txnRepository,
             AlertService alertService
     ) {
         this.watchlistRepository = watchlistRepository;
         this.watchlistMatchRepository = watchlistMatchRepository;
-        this.transactionDao = transactionDao;
+        this.txnRepository = txnRepository;
         this.alertService = alertService;
     }
 
@@ -52,9 +52,9 @@ public class WatchlistScreeningService {
         List<WatchlistMatch> matches = matchWatchlist(customerName, threshold, txn);
 
         if (matches.isEmpty()) {
-            transactionDao.updateStatus(txn.getTxnId(), TxnStatus.SCREENED);
+            txnRepository.updateStatus(txn.getTxnId(), TxnStatus.SCREENED);
         } else {
-            transactionDao.updateStatus(txn.getTxnId(), TxnStatus.PENDING);
+            txnRepository.updateStatus(txn.getTxnId(), TxnStatus.PENDING);
             blockIfSanctioned(txn, matches);
         }
 
@@ -67,7 +67,7 @@ public class WatchlistScreeningService {
                     .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
 
             if (sanctioned) {
-                transactionDao.updateStatus(txn.getTxnId(), TxnStatus.BLOCKED);
+                txnRepository.updateStatus(txn.getTxnId(), TxnStatus.BLOCKED);
                 log.warn("Transaction {} BLOCKED — exact watchlist match found", txn.getTxnId());
                 alertService.raiseAlert(txn.getTxnId(), "WATCHLIST", "Transaction blocked due to exact watchlist match");
             }

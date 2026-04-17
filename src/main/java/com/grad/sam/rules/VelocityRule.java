@@ -19,7 +19,6 @@ public class VelocityRule implements AmlRule {
             return Optional.empty();
         }
 
-        // +1 to include the current transaction being screened
         int total = context.getRecentTxns().size() + 1;
 
         if (total > rule.getThresholdCount()) {

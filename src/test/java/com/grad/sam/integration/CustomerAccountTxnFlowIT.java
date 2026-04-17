@@ -155,7 +155,7 @@ class CustomerAccountTxnFlowIT {
         txnRepository.save(buildTxn("TXN-SMALL", new BigDecimal("200.00"), "PL"));
 
         List<Txn> large = txnRepository.findByAmountUsdGreaterThanEqualAndStatus(
-                new BigDecimal("10000.00"), "COMPLETED");
+                new BigDecimal("10000.00"), TxnStatus.COMPLETED);
 
         assertEquals(1, large.size());
         assertEquals("TXN-BIG", large.get(0).getTxnRef());
@@ -267,7 +267,7 @@ class CustomerAccountTxnFlowIT {
         txn.setAmountUsd(amountUsd);
         txn.setTxnDate(LocalDate.now());
         txn.setValueDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setCounterpartyCountry(counterpartyCountry);
         txn.setAccount(account);
         return txn;
