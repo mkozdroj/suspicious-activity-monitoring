@@ -1,5 +1,6 @@
 package com.grad.sam.dao;
 
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Txn;
 import com.grad.sam.repository.TxnRepository;
 import jakarta.transaction.Transactional;
@@ -45,14 +46,14 @@ public class TxnDao {
     }
 
     public List<Txn> findLargeTransactions(BigDecimal minAmountUsd) {
-        return txnRepository.findByAmountUsdGreaterThanEqualAndStatus(minAmountUsd, "COMPLETED");
+        return txnRepository.findByAmountUsdGreaterThanEqualAndStatus(minAmountUsd, TxnStatus.COMPLETED);
     }
 
     public List<Txn> findByCounterpartyCountry(String country) {
         return txnRepository.findByCounterpartyCountry(country);
     }
 
-    public String getStatus(Integer txnId) {
+    public TxnStatus getStatus(Integer txnId) {
         return txnRepository.findById(txnId)
                 .map(Txn::getStatus)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction " + txnId + " not found."));
@@ -65,7 +66,7 @@ public class TxnDao {
     }
 
     @Transactional
-    public void updateStatus(Integer txnId, String status) {
+    public void updateStatus(Integer txnId, TxnStatus status) {
         int rows = txnRepository.updateStatus(txnId, status);
         if (rows > 0) {
             log.info("Updated txn {} status to {}", txnId, status);

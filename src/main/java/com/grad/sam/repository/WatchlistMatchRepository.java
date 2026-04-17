@@ -26,3 +26,4 @@ public interface WatchlistMatchRepository extends JpaRepository<WatchlistMatch, 
 
     List<WatchlistMatch> findByTxn_TxnIdAndMatchScoreGreaterThanEqual(Integer txnId, BigDecimal threshold);
 }
+

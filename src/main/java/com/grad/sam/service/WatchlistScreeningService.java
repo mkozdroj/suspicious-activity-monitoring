@@ -1,6 +1,9 @@
 package com.grad.sam.service;
 
 import com.grad.sam.dao.TxnDao;
+import com.grad.sam.enums.MatchStatus;
+import com.grad.sam.enums.MatchType;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Txn;
 import com.grad.sam.model.Watchlist;
 import com.grad.sam.model.WatchlistMatch;
@@ -21,6 +24,7 @@ public class WatchlistScreeningService {
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;
     private final TxnDao transactionDao;
+    private final BigDecimal EXACT_MATCH_SCORE = new BigDecimal("100.00");
 
     public WatchlistScreeningService(
             WatchlistRepository watchlistRepository,
@@ -34,20 +38,21 @@ public class WatchlistScreeningService {
 
     @Transactional
     public List<WatchlistMatch> screenCustomer(String customerName, BigDecimal threshold, Txn txn) throws IllegalStateException {
+
         log.info("Starting watchlist screening for txn: {}", txn.getTxnId());
 
         List<WatchlistMatch> matches = matchWatchlist(customerName, threshold, txn);
 
-        String finalStatus = "SCREENED";
+        TxnStatus finalStatus = TxnStatus.SCREENED;
         boolean hasExactMatch = matches.stream()
-                .anyMatch(m -> m.getMatchScore().compareTo(new BigDecimal("100.00")) == 0);
+                .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
         if (hasExactMatch)
-            finalStatus = "BLOCKED";
+            finalStatus = TxnStatus.BLOCKED;
         else if (!matches.isEmpty())
-            finalStatus = "PENDING";
+            finalStatus = TxnStatus.PENDING;
 
         transactionDao.updateStatus(txn.getTxnId(), finalStatus);
-        if (finalStatus.equals("BLOCKED"))
+        if (finalStatus.equals(TxnStatus.BLOCKED))
             log.warn("Transaction {} BLOCKED — exact watchlist match found", txn.getTxnId());
 
         return matches;
@@ -66,7 +71,7 @@ public class WatchlistScreeningService {
             BigDecimal score = BigDecimal.ZERO;
 
             if (entryName.equals(normalized)) {
-                score = new BigDecimal("100.00");
+                score = EXACT_MATCH_SCORE;
             } else if (normalized.contains(entryName) || entryName.contains(normalized)) {
                 score = new BigDecimal("85.00");
             }
@@ -75,11 +80,11 @@ public class WatchlistScreeningService {
                 WatchlistMatch match = new WatchlistMatch();
                 match.setTxn(txn);
                 match.setWatchlist(entry);
-                match.setMatchType("FUZZY_NAME");
+                match.setMatchType(MatchType.FUZZY_NAME);
                 match.setMatchScore(score);
                 match.setMatchedField("entity_name");
                 match.setMatchedValue(customerName);
-                match.setStatus("PENDING");
+                match.setStatus(MatchStatus.PENDING);
                 results.add(match);
             }
         }

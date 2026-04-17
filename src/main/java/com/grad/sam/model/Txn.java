@@ -1,5 +1,8 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.TxnDirection;
+import com.grad.sam.enums.TxnStatus;
+import com.grad.sam.enums.TxnType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -39,10 +42,10 @@ public class Txn {
     private String counterpartyCountry;
 
     @Column(name = "txn_type", nullable = false, length = 20)
-    private String txnType;             // WIRE, CASH, CARD, INTERNAL, CRYPTO, CHEQUE
+    private TxnType txnType;
 
     @Column(name = "direction", nullable = false, length = 2)
-    private String direction;                   // CR (credit/in) or DR (debit/out)
+    private TxnDirection direction;
 
     @Column(name = "amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
@@ -60,7 +63,7 @@ public class Txn {
     private LocalDate valueDate;
 
     @Column(name = "status", nullable = false, length = 12)
-    private String status = "COMPLETED";        // COMPLETED, PENDING, REVERSED, FAILED
+    private TxnStatus status = TxnStatus.COMPLETED;
 
     @Column(name = "description", length = 200)
     private String description;

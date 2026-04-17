@@ -1,5 +1,7 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.MatchStatus;
+import com.grad.sam.enums.MatchType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,7 +33,7 @@ public class WatchlistMatch {
 
     // NAME, ACCOUNT, COUNTRY, FUZZY_NAME
     @Column(name = "match_type", nullable = false, length = 20)
-    private String matchType;
+    private MatchType matchType;
 
     // 0.00 – 100.00 confidence score
     @Column(name = "match_score", nullable = false, precision = 5, scale = 2)
@@ -45,7 +47,7 @@ public class WatchlistMatch {
 
     // PENDING, FALSE_POSITIVE, CONFIRMED, ESCALATED
     @Column(name = "status", nullable = false, length = 15)
-    private String status = "PENDING";
+    private MatchStatus status = MatchStatus.PENDING;
 
     @Column(name = "reviewed_by", length = 60)
     private String reviewedBy;
