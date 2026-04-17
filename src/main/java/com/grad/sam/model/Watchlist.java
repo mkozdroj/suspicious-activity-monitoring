@@ -1,8 +1,10 @@
 package com.grad.sam.model;
 
+import com.grad.sam.enums.ListType;
 import com.grad.sam.enums.WatchlistEntityType;
 import com.grad.sam.enums.WatchlistListType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -22,26 +24,34 @@ public class Watchlist {
     @Column(name = "watchlist_id")
     private Integer watchlistId;
 
-    // OFAC, UN, EU, HMT, INTERPOL, INTERNAL, PEP
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "list_type", nullable = false, length = 20)
-    private WatchlistListType listType;
+    private ListType listType;
 
+    @NotBlank
+    @Size(max = 120)
     @Column(name = "entity_name", nullable = false, length = 120)
     private String entityName;
 
-    // INDIVIDUAL, ENTITY, VESSEL, AIRCRAFT
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "entity_type", nullable = false, length = 20)
     private WatchlistEntityType entityType;
 
+    @Pattern(regexp = "^[A-Z]{2}$")
     @Column(name = "country", length = 2)
     private String country;
 
+    @Past
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
+    @NotBlank @Size(max = 200)
     @Column(name = "reason", nullable = false, length = 200)
     private String reason;
 
+    @NotNull @PastOrPresent
     @Column(name = "listed_date", nullable = false)
     private LocalDate listedDate;
 
