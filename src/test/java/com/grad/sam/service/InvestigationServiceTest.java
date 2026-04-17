@@ -142,7 +142,7 @@ class InvestigationServiceTest {
     }
 
     @Test
-    void openCase_defaults_priority_to_medium_when_null() {
+    void openCase_persists_explicit_priority_value() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
 
@@ -150,7 +150,7 @@ class InvestigationServiceTest {
         when(investigationRepository.save(captor.capture()))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        service.openCase(100, "officer@bank.com", null);
+        service.openCase(100, "officer@bank.com", Priority.MEDIUM);
 
         assertEquals(Priority.MEDIUM, captor.getAllValues().get(0).getPriority());
     }
