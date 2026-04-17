@@ -4,13 +4,8 @@ import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
 import com.grad.sam.enums.Priority;
-import com.grad.sam.exception.AlertNotFoundException;
-import com.grad.sam.exception.CustomerNotFoundException;
-import com.grad.sam.exception.DuplicateInvestigationException;
+import com.grad.sam.exception.DataNotFoundException;
 import com.grad.sam.exception.InvalidInputException;
-import com.grad.sam.exception.InvalidStateTransitionException;
-import com.grad.sam.exception.InvestigationNotFoundException;
-import com.grad.sam.exception.MissingFindingsException;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.Customer;
 import com.grad.sam.model.Investigation;
@@ -91,9 +86,9 @@ public class InvestigationService {
      * @throws jakarta.validation.ConstraintViolationException if any parameter fails its constraint
      * @throws InvalidInputException                           if {@code priority} is not a recognised
      *                                                         {@link Priority} value
-     * @throws AlertNotFoundException                          if no alert exists for the given ID
-     * @throws DuplicateInvestigationException                 if an investigation already exists for the alert
-     * @throws CustomerNotFoundException                       if the alert's account has no associated customer
+     * @throws DataNotFoundException                           if no alert exists for the given ID,
+     *                                                         an investigation already exists for the alert,
+     *                                                         or the alert's account has no associated customer
      */
     @Transactional
     public Investigation openCase(@NotNull @Positive Integer alertId,
@@ -103,15 +98,19 @@ public class InvestigationService {
         Priority resolvedPriority = resolvePriority(priority);
 
         Alert alert = alertRepository.findById(alertId)
-                .orElseThrow(() -> new AlertNotFoundException(alertId));
+                .orElseThrow(() -> new DataNotFoundException(
+                        "Alert not found for id: " + alertId));
 
         if (investigationRepository.findByAlert_AlertId(alertId).isPresent()) {
-            throw new DuplicateInvestigationException(alertId);
+            throw new DataNotFoundException(
+                    "Investigation already exists for alert id: " + alertId);
         }
 
         Customer customer = alert.getAccount().getCustomer();
         if (customer == null) {
-            throw new CustomerNotFoundException(alertId);
+            throw new DataNotFoundException(
+                    "No customer found for the account linked to alert id: " + alertId
+                            + ". Cannot open investigation without a valid customer.");
         }
 
         Investigation investigation = new Investigation();
@@ -160,11 +159,10 @@ public class InvestigationService {
      * @return the updated {@link Investigation}
      * @throws jakarta.validation.ConstraintViolationException if {@code investigationId} or
      *                                                         {@code newState} fails its constraint
-     * @throws InvestigationNotFoundException                  if no investigation exists for the given ID
-     * @throws InvalidStateTransitionException                 if the requested transition is not permitted
-     *                                                         by the state machine
+     * @throws DataNotFoundException                           if no investigation exists for the given ID,
+     *                                                         or the state transition is not permitted
      * @throws InvalidInputException                           if closing without an outcome
-     * @throws MissingFindingsException                        if closing without a findings summary
+     *                                                         or without a findings summary
      */
     @Transactional
     public Investigation updateCaseStatus(@NotNull @Positive Integer investigationId,
@@ -173,13 +171,15 @@ public class InvestigationService {
                                           String findings) {
 
         Investigation investigation = investigationRepository.findById(investigationId)
-                .orElseThrow(() -> new InvestigationNotFoundException(investigationId));
+                .orElseThrow(() -> new DataNotFoundException(
+                        "Investigation not found for id: " + investigationId));
 
         InvestigationState currentState = investigation.getState();
 
         if (!isValidTransition(currentState, newState)) {
-            throw new InvalidStateTransitionException(
-                    investigation.getInvestigationRef(), currentState, newState);
+            throw new DataNotFoundException(
+                    "Invalid state transition for investigation " + investigation.getInvestigationRef()
+                            + ": " + currentState + " → " + newState);
         }
 
         if (newState == InvestigationState.CLOSED) {
@@ -239,11 +239,12 @@ public class InvestigationService {
      * @param ref the investigation reference; must not be blank
      * @return the matching {@link Investigation}
      * @throws jakarta.validation.ConstraintViolationException if {@code ref} is blank
-     * @throws InvestigationNotFoundException                  if no investigation matches the reference
+     * @throws DataNotFoundException                           if no investigation matches the reference
      */
     public Investigation findByRef(@NotBlank String ref) {
         return investigationRepository.findByInvestigationRef(ref)
-                .orElseThrow(() -> new InvestigationNotFoundException(ref));
+                .orElseThrow(() -> new DataNotFoundException(
+                        "Investigation not found for ref: " + ref));
     }
 
     // -------------------------------------------------------------------------
@@ -269,8 +270,7 @@ public class InvestigationService {
     /**
      * Validates that a close operation supplies both an outcome and a findings summary.
      *
-     * @throws InvalidInputException    if {@code outcome} is null
-     * @throws MissingFindingsException if {@code findings} is null or blank
+     * @throws InvalidInputException if {@code outcome} is null or {@code findings} is blank
      */
     private void validateCloseInputs(Investigation investigation,
                                      InvestigationOutcome outcome,
@@ -282,7 +282,10 @@ public class InvestigationService {
                             + ". Valid outcomes: SAR_FILED, NO_ACTION, ACCOUNT_CLOSED, ESCALATED, MONITORING.");
         }
         if (findings == null || findings.isBlank()) {
-            throw new MissingFindingsException(investigation.getInvestigationRef());
+            throw new InvalidInputException(
+                    "Findings summary is required when closing investigation "
+                            + investigation.getInvestigationRef()
+                            + ". Please provide the compliance officer's rationale before closing.");
         }
     }
 

@@ -1,8 +1,8 @@
 package com.grad.sam.service;
 
 import com.grad.sam.enums.TxnStatus;
+import com.grad.sam.exception.DataNotFoundException;
 import com.grad.sam.exception.InvalidInputException;
-import com.grad.sam.exception.TransactionNotFoundException;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.Txn;
@@ -63,7 +63,7 @@ public class ScreenTransactionService {
      * @param txnId the ID of the transaction to screen; must be a non-null positive integer
      * @return list of alerts triggered; empty if no rules fired
      * @throws jakarta.validation.ConstraintViolationException if {@code txnId} is null or non-positive
-     * @throws TransactionNotFoundException                    if no transaction exists for the given ID
+     * @throws DataNotFoundException                           if no transaction exists for the given ID
      * @throws InvalidInputException                           if the transaction status is not screenable
      *                                                         or {@code amountUsd} is null or non-positive
      */
@@ -71,7 +71,8 @@ public class ScreenTransactionService {
     public List<Alert> screenTransaction(@NotNull @Positive Integer txnId) {
 
         Txn txn = txnRepository.findById(txnId)
-                .orElseThrow(() -> new TransactionNotFoundException(txnId));
+                .orElseThrow(() -> new DataNotFoundException(
+                        "Transaction not found for id: " + txnId));
 
         validateTxnStatus(txn);
         validateTxnAmount(txn);
