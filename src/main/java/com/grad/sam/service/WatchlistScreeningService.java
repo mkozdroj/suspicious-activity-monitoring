@@ -23,8 +23,8 @@ import java.util.List;
 @Service
 @Validated
 public class WatchlistScreeningService {
-    private static final BigDecimal EXACT_MATCH_SCORE = new BigDecimal("100.00");
-    private static final BigDecimal FUZZY_MATCH_SCORE = new BigDecimal("85.00");
+    public static final BigDecimal EXACT_MATCH_SCORE = new BigDecimal("100.00");
+    public static final BigDecimal FUZZY_MATCH_SCORE = new BigDecimal("85.00");
 
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;

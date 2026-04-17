@@ -29,14 +29,18 @@ public class RuleEngineService {
     private final TxnRepository txnRepository;
     private final DataSource dataSource;
     private final Map<String, AmlRule> rulesByCategory;
+    private final WatchlistScreeningService watchlistScreeningService;
 
     public RuleEngineService(AlertRuleRepository alertRuleRepository,
                              TxnRepository txnRepository,
                              DataSource dataSource,
-                             List<AmlRule> rules) {
+                             List<AmlRule> rules,
+                             WatchlistScreeningService watchlistScreeningService) {
         this.alertRuleRepository = alertRuleRepository;
+        this.watchlistScreeningService = watchlistScreeningService;
         this.txnRepository = txnRepository;
         this.dataSource = dataSource;
+
         this.rulesByCategory = rules.stream()
                 .collect(Collectors.toMap(
                         AmlRule::getSupportedCategory,
@@ -47,28 +51,22 @@ public class RuleEngineService {
     @Transactional
     public List<Long> screenTransaction(Txn txn, Account account) {
 
-        // 1. load all active rules
         List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
 
-        // 2. find the longest lookback window
         int maxLookback = activeRules.stream()
                 .mapToInt(r -> r.getLookbackDays() != null ? r.getLookbackDays() : 30)
                 .max()
                 .orElse(30);
 
-        // 3. fetch recent transactions for the account within that window
-        //    txn.getTxnId() is Integer — passed directly to TxnDao
         List<Txn> recentTxns = txnRepository.findRecentByAccount(
                 account.getAccountId(), txn.getTxnId(), maxLookback);
 
-        // 4. build the shared context object for all rule evaluations
         RuleContext context = RuleContext.builder()
                 .txn(txn)
                 .account(account)
                 .recentTxns(recentTxns)
                 .build();
 
-        // 5. evaluate each rule, raise an alert for each match
         List<Long> alertIds = activeRules.stream()
                 .map(rule -> evaluateRule(context, rule))
                 .filter(Optional::isPresent)
@@ -77,16 +75,21 @@ public class RuleEngineService {
                 .filter(id -> id > 0)
                 .collect(Collectors.toList());
 
-        // 6. mark the transaction as screened
         callScreenTransaction(txn.getTxnId());
+
+        try {
+            watchlistScreeningService.screenCustomer(
+                    account.getCustomer().getFullName(),
+                    WatchlistScreeningService.FUZZY_MATCH_SCORE,
+                    txn
+            );
+        } catch (Exception e) {
+            log.error("Watchlist screening failed for txn {}: {}", txn.getTxnId(), e.getMessage(), e);
+        }
 
         log.info("Screened txn {} — {} alert(s) raised", txn.getTxnRef(), alertIds.size());
         return alertIds;
     }
-
-    // ----------------------------------------------------------------
-    // private helpers
-    // ----------------------------------------------------------------
 
     private Optional<RuleMatch> evaluateRule(RuleContext context, AlertRule rule) {
         if (rule.getRuleCategory() == null) {

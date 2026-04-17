@@ -39,6 +39,7 @@ class RuleEngineServiceTest {
     @Mock private AlertRuleRepository alertRuleRepository;
     @Mock private TxnRepository txnRepository;
     @Mock private DataSource dataSource;
+    @Mock private WatchlistScreeningService watchlistScreeningService;
 
     @Mock private Connection raiseAlertConnection;
     @Mock private Connection screenTxnConnection;
@@ -76,12 +77,12 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
         assertEquals(1, result.size());
-        assertEquals(99L, result.get(0));
+        assertEquals(99L, result.getFirst());
     }
 
     @Test
@@ -95,7 +96,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(mockImpl), watchlistScreeningService);
 
         service.screenTransaction(currentTxn, account);
 
@@ -114,7 +115,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(), watchlistScreeningService);
 
         service.screenTransaction(currentTxn, account);
 
@@ -130,7 +131,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -147,7 +148,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(unknownCategoryRule));
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(velocityOnlyImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(velocityOnlyImpl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -172,12 +173,12 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(55L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(faultyImpl, goodImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(faultyImpl, goodImpl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
         assertEquals(1, result.size());
-        assertEquals(55L, result.get(0));
+        assertEquals(55L, result.getFirst());
     }
 
     @Test
@@ -189,7 +190,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(dataSource.getConnection()).thenThrow(new RuntimeException("DB failure"));
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -206,7 +207,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -223,7 +224,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule1, rule2));
         when(txnRepository.findRecentByAccount(1, 42, 45)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(), watchlistScreeningService);
 
         service.screenTransaction(currentTxn, account);
 
@@ -243,7 +244,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(99L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         service.screenTransaction(currentTxn, account);
 
@@ -264,7 +265,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(101L, 102L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl1, impl2));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl1, impl2), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -285,7 +286,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(rule));
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -304,7 +305,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(-1L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -324,7 +325,7 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(88L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         service.screenTransaction(currentTxn, account);
 
@@ -347,12 +348,12 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(200L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
         assertEquals(1, result.size(), "Expected alert for category: " + category);
-        assertEquals(200L, result.get(0));
+        assertEquals(200L, result.getFirst());
     }
 
     // ── Inactive rule skipped ─────────────────────────────────────────────────
@@ -371,7 +372,7 @@ class RuleEngineServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
@@ -399,12 +400,12 @@ class RuleEngineServiceTest {
         when(txnRepository.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
         when(raiseAlertStatement.getLong(4)).thenReturn(300L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(watchlistImpl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(watchlistImpl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(currentTxn, account);
 
         assertEquals(1, result.size());
-        assertEquals(300L, result.get(0));
+        assertEquals(300L, result.getFirst());
 
         // Verify the correct reason was passed to raise_alert stored procedure
         verify(raiseAlertStatement).setString(3, expectedReason);

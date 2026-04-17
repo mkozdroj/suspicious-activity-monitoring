@@ -31,6 +31,7 @@ class AlertRaisingServiceTest {
     @Mock private AlertRuleRepository alertRuleRepository;
     @Mock private TxnRepository txnRepository;
     @Mock private DataSource dataSource;
+    @Mock private WatchlistScreeningService watchlistScreeningService;
 
 
     @Mock private Connection raiseConn;
@@ -67,12 +68,12 @@ class AlertRaisingServiceTest {
         when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
         when(raiseStmt.getLong(4)).thenReturn(100L);
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(txn, account);
 
         assertEquals(1, result.size());
-        assertEquals(100L, result.get(0));
+        assertEquals(100L, result.getFirst());
 
         verify(raiseStmt).execute();
     }
@@ -90,7 +91,7 @@ class AlertRaisingServiceTest {
         when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
         when(raiseStmt.getLong(4)).thenReturn(-1L); // DUPLICATE
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl));
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(impl), watchlistScreeningService);
 
         List<Long> result = service.screenTransaction(txn, account);
 
@@ -107,7 +108,7 @@ class AlertRaisingServiceTest {
         when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
         when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
 
-        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of());
+        service = new RuleEngineService(alertRuleRepository, txnRepository, dataSource, List.of(), watchlistScreeningService);
 
         service.screenTransaction(txn, account);
 
