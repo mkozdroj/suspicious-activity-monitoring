@@ -3,6 +3,7 @@ package com.grad.sam.model;
 import com.grad.sam.enums.MatchStatus;
 import com.grad.sam.enums.MatchType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -32,23 +33,34 @@ public class WatchlistMatch {
     private Watchlist watchlist;
 
     // NAME, ACCOUNT, COUNTRY, FUZZY_NAME
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "match_type", nullable = false, length = 20)
     private MatchType matchType;
 
     // 0.00 – 100.00 confidence score
+    @NotNull
+    @DecimalMin("0.00")
+    @DecimalMax("100.00")
+    @Digits(integer = 3, fraction = 2)
     @Column(name = "match_score", nullable = false, precision = 5, scale = 2)
     private BigDecimal matchScore;
 
+    @NotBlank
+    @Size(max = 50)
     @Column(name = "matched_field", nullable = false, length = 50)
     private String matchedField;
 
+    @NotBlank @Size(max = 120)
     @Column(name = "matched_value", nullable = false, length = 120)
     private String matchedValue;
 
-    // PENDING, FALSE_POSITIVE, CONFIRMED, ESCALATED
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 15)
     private MatchStatus status = MatchStatus.PENDING;
 
+    @Size(max = 60)
     @Column(name = "reviewed_by", length = 60)
     private String reviewedBy;
 
