@@ -3,11 +3,11 @@ package com.grad.sam.service;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
+import com.grad.sam.enums.Priority;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.Customer;
 import com.grad.sam.model.Investigation;
 import com.grad.sam.repository.AlertRepository;
-import com.grad.sam.repository.CustomerRepository;
 import com.grad.sam.repository.InvestigationRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Service that manages the AML investigation (case management) lifecycle.
@@ -105,7 +104,7 @@ public class InvestigationService {
         investigation.setCustomer(customer);
         investigation.setOpenedBy(assignedOfficer);
         investigation.setOpenedAt(LocalDateTime.now());
-        investigation.setPriority(priority != null ? priority : "MEDIUM");
+        investigation.setPriority(Priority.MEDIUM);
         investigation.setState(InvestigationState.OPEN);
 
         // Move the alert into UNDER_REVIEW so it doesn't appear on the open alerts view
