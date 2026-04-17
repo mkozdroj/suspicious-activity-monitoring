@@ -9,9 +9,11 @@ import com.grad.sam.model.Customer;
 import com.grad.sam.model.Investigation;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.InvestigationRepository;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +39,7 @@ import java.util.Set;
  */
 @Slf4j
 @Service
+@Validated
 public class InvestigationService {
 
     /**
@@ -79,7 +82,7 @@ public class InvestigationService {
      *         found or an investigation already exists
      */
     @Transactional
-    public Investigation openCase(Integer alertId, String assignedOfficer, String priority) {
+    public Investigation openCase(@NotNull Integer alertId, @NotNull String assignedOfficer, String priority) {
 
         Alert alert = alertRepository.findById(alertId).orElse(null);
         if (alert == null) {
@@ -145,8 +148,8 @@ public class InvestigationService {
      * @return the updated {@link Investigation}
      */
     @Transactional
-    public Investigation updateCaseStatus(Integer investigationId,
-                                          InvestigationState newState,
+    public Investigation updateCaseStatus(@NotNull Integer investigationId,
+                                          @NotNull InvestigationState newState,
                                           InvestigationOutcome outcome,
                                           String findings) {
 
@@ -215,7 +218,7 @@ public class InvestigationService {
      * @param officerEmail the officer's email / username
      * @return list of investigations opened by the given officer
      */
-    public List<Investigation> findByOfficer(String officerEmail) {
+    public List<Investigation> findByOfficer(@NotNull String officerEmail) {
         return investigationRepository.findByOpenedBy(officerEmail);
     }
 
@@ -225,7 +228,7 @@ public class InvestigationService {
      * @param ref the investigation reference (e.g. INV-260414-00001)
      * @return the investigation
      */
-    public Investigation findByRef(String ref) {
+    public Investigation findByRef(@NotNull String ref) {
         return investigationRepository.findByInvestigationRef(ref).orElse(null);
     }
 

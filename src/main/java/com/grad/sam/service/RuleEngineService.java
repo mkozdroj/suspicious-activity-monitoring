@@ -3,12 +3,16 @@ package com.grad.sam.service;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import javax.sql.DataSource;
 import java.sql.CallableStatement;
@@ -18,11 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import com.grad.sam.repository.AlertRuleRepository;
-import com.grad.sam.repository.TxnRepository;
 
 @Slf4j
 @Service
+@Validated
 public class RuleEngineService {
 
     private final AlertRuleRepository alertRuleRepository;
@@ -49,7 +52,7 @@ public class RuleEngineService {
     }
 
     @Transactional
-    public List<Long> screenTransaction(Txn txn, Account account) {
+    public List<Long> screenTransaction(@NotNull Txn txn, @NotNull Account account) {
 
         List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
 

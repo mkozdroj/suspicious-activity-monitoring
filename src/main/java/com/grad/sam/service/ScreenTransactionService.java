@@ -6,10 +6,12 @@ import com.grad.sam.model.Alert;
 import com.grad.sam.model.Txn;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.TxnRepository;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
@@ -27,6 +29,7 @@ import java.util.List;
 @Data
 @Slf4j
 @Service
+@Validated
 public class ScreenTransactionService {
 
     private final TxnRepository txnRepository;
@@ -55,7 +58,7 @@ public class ScreenTransactionService {
      * @return list of alerts triggered; empty if no rules fired or transaction not found
      */
     @Transactional
-    public List<Alert> screenTransaction(Integer txnId) {
+    public List<Alert> screenTransaction(@NotNull Integer txnId) {
 
         Txn txn = txnRepository.findById(txnId).orElse(null);
         if (txn == null) {
