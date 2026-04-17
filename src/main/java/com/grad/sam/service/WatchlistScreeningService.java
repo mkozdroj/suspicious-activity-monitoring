@@ -9,7 +9,7 @@ import com.grad.sam.model.WatchlistMatch;
 import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.repository.WatchlistMatchRepository;
 import com.grad.sam.repository.WatchlistRepository;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +44,7 @@ public class WatchlistScreeningService {
     }
 
     @Transactional
-    public List<WatchlistMatch> screenCustomer(@NotNull String customerName, BigDecimal threshold, @NotNull Txn txn) throws IllegalStateException {
+    public List<WatchlistMatch> screenCustomer(@NotBlank String customerName, BigDecimal threshold, @NotBlank Txn txn) throws IllegalStateException {
         log.info("Starting watchlist screening for txn: {}", txn.getTxnId());
 
         List<WatchlistMatch> matches = matchWatchlist(customerName, threshold, txn);
@@ -59,7 +59,7 @@ public class WatchlistScreeningService {
         return matches;
     }
 
-    public void blockIfSanctioned(@NotNull Txn txn, List<WatchlistMatch> matches) {
+    public void blockIfSanctioned(@NotBlank Txn txn, List<WatchlistMatch> matches) {
         try {
             boolean sanctioned = matches.stream()
                     .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
