@@ -28,18 +28,18 @@ public class WatchlistScreeningService {
 
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;
-    private final TxnRepository txnRepository;
+    private final TxnService txnService;
     private final AlertService alertService;
 
     public WatchlistScreeningService(
             WatchlistRepository watchlistRepository,
             WatchlistMatchRepository watchlistMatchRepository,
-            TxnRepository txnRepository,
+            TxnService txnService,
             AlertService alertService
     ) {
         this.watchlistRepository = watchlistRepository;
         this.watchlistMatchRepository = watchlistMatchRepository;
-        this.txnRepository = txnRepository;
+        this.txnService = txnService;
         this.alertService = alertService;
     }
 
@@ -50,9 +50,9 @@ public class WatchlistScreeningService {
         List<WatchlistMatch> matches = matchWatchlist(customerName, threshold, txn);
 
         if (matches.isEmpty()) {
-            txnRepository.updateStatus(txn.getTxnId(), TxnStatus.SCREENED);
+            txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.SCREENED);
         } else {
-            txnRepository.updateStatus(txn.getTxnId(), TxnStatus.PENDING);
+            txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.PENDING);
             blockIfSanctioned(txn, matches);
         }
 
@@ -65,7 +65,7 @@ public class WatchlistScreeningService {
                     .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
 
             if (sanctioned) {
-                txnRepository.updateStatus(txn.getTxnId(), TxnStatus.BLOCKED);
+                txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.BLOCKED);
                 log.warn("Transaction {} BLOCKED — exact watchlist match found", txn.getTxnId());
                 alertService.raiseAlert(txn.getTxnId(), "WATCHLIST", "Transaction blocked due to exact watchlist match");
             }
