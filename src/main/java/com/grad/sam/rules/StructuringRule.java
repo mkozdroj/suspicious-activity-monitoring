@@ -19,6 +19,19 @@ public class StructuringRule implements AmlRule {
 
     @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (context.getTxn() == null) {
+            throw new IllegalArgumentException("Transaction in context must not be null.");
+        }
+        if (context.getRecentTxns() == null) {
+            throw new IllegalStateException("Recent transactions list must not be null.");
+        }
+
         if (rule.getThresholdAmount() == null) {
             return Optional.empty();
         }
@@ -30,7 +43,12 @@ public class StructuringRule implements AmlRule {
                 .map(Txn::getAmountUsd)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        windowTotal = windowTotal.add(context.getTxn().getAmountUsd());
+        BigDecimal currentAmount = context.getTxn().getAmountUsd();
+        if (currentAmount == null) {
+            throw new IllegalStateException("Transaction amountUsd must not be null.");
+        }
+
+        windowTotal = windowTotal.add(currentAmount);
 
         boolean isStructuring = windowTotal.compareTo(lowerBand) >= 0
                 && windowTotal.compareTo(threshold) < 0;

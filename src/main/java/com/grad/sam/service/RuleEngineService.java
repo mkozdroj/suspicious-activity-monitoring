@@ -5,24 +5,18 @@ import com.grad.sam.model.Account;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.sql.DataSource;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import com.grad.sam.repository.AlertRuleRepository;
-import com.grad.sam.repository.TxnRepository;
 
 @Slf4j
 @Service
@@ -52,47 +46,67 @@ public class RuleEngineService {
                         (existing, replacement) -> existing));
     }
 
-public List<Long> screenTransaction(Txn txn, Account account) {
-    List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
+    public List<Long> screenTransaction(Txn txn, Account account) {
+        validateRequiredInput(txn, account);
 
-    int maxLookback = activeRules.stream()
-            .mapToInt(r -> r.getLookbackDays() != null ? r.getLookbackDays() : 30)
-            .max()
-            .orElse(30);
+        List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
+        if (activeRules == null) {
+            throw new IllegalStateException("Active rules query returned null.");
+        }
 
-    List<Txn> recentTxns = txnRepository.findRecentByAccount(
-            account.getAccountId(), txn.getTxnId(), maxLookback);
+        int maxLookback = activeRules.stream()
+                .mapToInt(r -> r.getLookbackDays() != null ? r.getLookbackDays() : 30)
+                .max()
+                .orElse(30);
 
-    RuleContext context = RuleContext.builder()
-            .txn(txn)
-            .account(account)
-            .recentTxns(recentTxns)
-            .build();
+        List<Txn> recentTxns = txnRepository.findRecentByAccount(
+                account.getAccountId(), txn.getTxnId(), maxLookback);
+        if (recentTxns == null) {
+            throw new IllegalStateException("Recent transactions query returned null.");
+        }
 
-    List<Long> alertIds = activeRules.stream()
-            .map(rule -> evaluateRule(context, rule))
-            .flatMap(Optional::stream)
-            .map(match -> alertService.createAlert(txn, account, match.getRule(), match.getReason()))
-            .map(Alert::getAlertId)
-            .map(Long::valueOf)
-            .toList();
+        RuleContext context = RuleContext.builder()
+                .txn(txn)
+                .account(account)
+                .recentTxns(recentTxns)
+                .build();
 
-    txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.SCREENED);
+        List<Long> alertIds = activeRules.stream()
+                .map(rule -> evaluateRule(context, rule))
+                .flatMap(Optional::stream)
+                .map(match -> alertService.createAlert(txn, account, match.getRule(), match.getReason()))
+                .map(Alert::getAlertId)
+                .map(Long::valueOf)
+                .toList();
 
-    try {
-        watchlistScreeningService.screenCustomer(
-                account.getCustomer().getFullName(),
-                WatchlistScreeningService.FUZZY_MATCH_SCORE,
-                txn
-        );
-    } catch (Exception e) {
-        log.error("Watchlist screening failed for txn {}: {}", txn.getTxnId(), e.getMessage(), e);
+        txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.SCREENED);
+
+        try {
+            String customerName = account.getCustomer() != null ? account.getCustomer().getFullName() : null;
+            if (customerName == null || customerName.isBlank()) {
+                throw new IllegalStateException(
+                        "Cannot run watchlist screening: customer full name is missing for account " + account.getAccountId());
+            }
+
+            watchlistScreeningService.screenCustomer(
+                    customerName,
+                    WatchlistScreeningService.FUZZY_MATCH_SCORE,
+                    txn
+            );
+        } catch (Exception e) {
+            log.error("Watchlist screening failed for txn {}: {}", txn.getTxnId(), e.getMessage(), e);
+        }
+
+        return alertIds;
     }
 
-    return alertIds;
-}
-
     private Optional<RuleMatch> evaluateRule(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
         if (rule.getRuleCategory() == null) {
             return Optional.empty();
         }
@@ -103,10 +117,30 @@ public List<Long> screenTransaction(Txn txn, Account account) {
         }
 
         try {
-            return impl.evaluate(context, rule);
+            Optional<RuleMatch> result = impl.evaluate(context, rule);
+            if (result == null) {
+                throw new IllegalStateException(
+                        "Rule implementation returned null Optional for rule_code '" + rule.getRuleCode() + "'.");
+            }
+            return result;
         } catch (Exception e) {
             log.error("Rule evaluation failed for rule_code '{}': {}", rule.getRuleCode(), e.getMessage(), e);
             return Optional.empty();
+        }
+    }
+
+    private void validateRequiredInput(Txn txn, Account account) {
+        if (txn == null) {
+            throw new IllegalArgumentException("Transaction must not be null.");
+        }
+        if (account == null) {
+            throw new IllegalArgumentException("Account must not be null.");
+        }
+        if (txn.getTxnId() == null) {
+            throw new IllegalArgumentException("Transaction id must not be null.");
+        }
+        if (account.getAccountId() == null) {
+            throw new IllegalArgumentException("Account id must not be null.");
         }
     }
 }

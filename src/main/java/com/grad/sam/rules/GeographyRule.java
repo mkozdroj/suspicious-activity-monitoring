@@ -26,6 +26,19 @@ public class GeographyRule implements AmlRule {
 
     @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (context.getTxn() == null) {
+            throw new IllegalArgumentException("Transaction in context must not be null.");
+        }
+        if (highRiskCountries == null) {
+            throw new IllegalStateException("High-risk countries configuration must not be null.");
+        }
+
         String country = context.getTxn().getCounterpartyCountry();
 
         if (country == null || country.isBlank()) {
