@@ -21,12 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
 @Validated
 @RequiredArgsConstructor
 public class AlertService {
+
+    private static final AtomicInteger ALERT_SEQUENCE = new AtomicInteger(0);
 
     private final AlertRepository alertRepository;
     private final TxnRepository txnRepository;
@@ -134,6 +137,8 @@ public class AlertService {
     }
 
     private String generateAlertRef() {
-        return "ALT-" + System.currentTimeMillis();
+        long timePart = System.currentTimeMillis() % 100_000_000L;
+        int sequencePart = ALERT_SEQUENCE.updateAndGet(current -> (current + 1) % 1000);
+        return String.format("ALT-%08d%03d", timePart, sequencePart);
     }
 }
