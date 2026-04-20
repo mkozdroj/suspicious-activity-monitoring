@@ -9,6 +9,7 @@ The system screens transactions using configurable rules, checks customers again
 
 - [Sprint 1](#sprint-1)
 - [Sprint 2](#sprint-2)
+- [Sprint 3](#sprint-3)
 - [Project Structure](#project-structure)
 - [Environment Setup](#environment-setup)
 - [Running the Application](#running-the-application)
@@ -121,23 +122,121 @@ Five DAO classes wrapping repository logic with domain-specific query methods: `
 
 ---
 
+## Sprint 3
+
+### REST Controllers
+
+Three REST controllers expose the current API surface under `/api/v1`:
+
+| Controller | Responsibility | Implemented endpoints |
+|---|---|---|
+| `TransactionController` | Customer lookup and account transaction history | `GET /customers/{id}`, `GET /accounts/{id}/transactions` |
+| `InvestigationController` | Open cases, retrieve case detail, append investigation notes | `POST /cases`, `GET /cases/{id}`, `POST /cases/{id}/notes` |
+| `WatchlistController` | Search watchlist entities and review persisted watchlist matches | `GET /watchlist/search?name=...`, `GET /watchlist-matches` |
+
+The controllers are intentionally thin: they validate request shape, delegate business logic to services, and rely on the global exception layer for consistent error responses.
+
+### Exception Handling
+
+Centralised exception handling is implemented through **`GlobalExceptionHandler`** using `@RestControllerAdvice`.
+
+Handled exception categories include:
+
+- **`DataNotFoundException`** — mapped to `404 RESOURCE_NOT_FOUND`
+- **`InvalidInputException`** — mapped to `400 INVALID_INPUT`
+- **`MethodArgumentNotValidException`** — mapped to `400 VALIDATION_FAILED` for request body validation
+- **`ConstraintViolationException`** — mapped to `400 VALIDATION_FAILED` for parameter validation
+- **`MethodArgumentTypeMismatchException`** — mapped to `400 TYPE_MISMATCH`
+- **`IllegalArgumentException`** — mapped to `400 INVALID_ARGUMENT`
+- **`IllegalStateException`** — mapped to `409 INVALID_STATE_TRANSITION`
+- **`Exception`** — mapped to `500 INTERNAL_ERROR`
+
+Exception classes currently present in the project:
+
+- `DataNotFoundException`
+- `GlobalExceptionHandler`
+- `InvalidInputException`
+
+This gives the API one consistent JSON error shape with `timestamp`, `status`, `errorCode`, `message`, and optional `details`.
+
+### DTO Layer
+
+Sprint 3 introduces and expands request/response DTO usage so the API returns purpose-built payloads instead of exposing internal service objects directly.
+
+Request DTOs:
+
+- `CaseNoteDto` — author and note text for appending case notes
+- `OpenCaseRequestDto` — alert id, officer, and priority for opening a case
+
+Response DTOs:
+
+- `CaseResponseDto` — case detail including status, severity, timestamps, outcome, and accumulated findings
+- `WatchlistMatchDto` — simplified watchlist match response model
+- `ErrorResponseDto` — standardised error response structure documented in OpenAPI
+
+Validation rules such as `@NotBlank`, `@Positive`, `@Pattern`, and `@Size` are applied directly on request DTOs and enforced automatically by Spring validation.
+
+### OpenAPI Configuration
+
+API documentation is now maintained in a standalone **OpenAPI YAML file** instead of being embedded in controller annotations.
+
+Current setup:
+
+- `src/main/resources/static/openapi.yaml` — source of truth for endpoint descriptions, examples, schemas, and response documentation
+- `application.properties` — configures Swagger UI to load the static spec with `springdoc.swagger-ui.url=/openapi.yaml`
+- `http://localhost:8080/swagger-ui.html` — interactive Swagger UI
+- `http://localhost:8080/openapi.yaml` — raw OpenAPI document served by Spring Boot static resources
+
+This keeps controller classes focused on routing and business flow while the OpenAPI spec owns:
+
+- endpoint descriptions
+- request/response examples
+- schema descriptions
+- seed-data-based sample payloads
+
+### Notes Workflow
+
+The case notes endpoint now uses the case ID in the path to identify the investigation:
+
+- `POST /api/v1/cases/{id}/notes`
+
+and the request body contains the note content itself:
+
+```json
+{
+  "author": "Alice Morgan",
+  "noteText": "Customer provided supporting documents for the wire transfer. Sanctions screening remains under review."
+}
+```
+
+The note is appended into the investigation `findings` field in a timestamped format:
+
+```text
+[2026-04-20 06:40 | Alice Morgan] Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+```
+
+---
+
 ## Project Structure
 
 ```
 sam/
 ├── src/main/java/com/grad/sam/
-│   ├── dao/              # DAO wrappers (AlertDao, TxnDao, …)
+│   ├── controller/       # REST controllers
 │   ├── enums/            # AlertSeverity, AlertStatus, RuleCategory, …
-│   ├── exception/
+│   ├── dto/              # Request and response DTOs
+│   ├── exception/        # Custom exceptions + global handler
 │   ├── model/            # JPA entities
 │   ├── repository/       # Spring Data JPA interfaces
 │   ├── rules/            # AmlRule interface + 6 rule implementations
-│   └── service/          # RuleEngineService, WatchlistScreeningService
+│   └── service/          # Screening, investigation, alert, and watchlist services
 ├── src/main/resources/
-│   └── application.properties
+│   ├── application.properties
+│   └── static/
+│       └── openapi.yaml  # Standalone OpenAPI specification used by Swagger UI
 ├── src/test/java/com/grad/sam/
-│   ├── dao/
 │   ├── integration/
+│   ├── repository/
 │   ├── rules/
 │   └── service/
 ├── src/test/resources/
@@ -243,14 +342,58 @@ The report is at `target/site/jacoco/index.html`. Enum classes under `com.grad.s
 
 ## API Examples
 
-- `POST /api/transactions/screen`
-- `GET /api/alerts`
-- `GET /api/alerts/{id}`
-- `PATCH /api/alerts/{id}/status`
-- `POST /api/cases`
-- `GET /api/cases/{id}`
-- `POST /api/cases/{id}/notes`
-- `GET /api/watchlist/search?name={name}`
+Current implemented endpoints:
+
+- `GET /api/v1/customers/{id}`
+- `GET /api/v1/accounts/{id}/transactions`
+- `POST /api/v1/cases`
+- `GET /api/v1/cases/{id}`
+- `POST /api/v1/cases/{id}/notes`
+- `GET /api/v1/watchlist/search?name={name}`
+- `GET /api/v1/watchlist-matches`
+
+Swagger UI:
+
+- `http://localhost:8080/swagger-ui.html`
+- `http://localhost:8080/openapi.yaml`
+
+Example `curl` calls:
+
+```bash
+curl http://localhost:8080/api/v1/customers/1
+```
+
+```bash
+curl http://localhost:8080/api/v1/accounts/1/transactions
+```
+
+```bash
+curl -X POST http://localhost:8080/api/v1/cases \
+  -H "Content-Type: application/json" \
+  -d '{"alertId":6,"assignedOfficer":"Alice Morgan","priority":"MEDIUM"}'
+```
+
+```bash
+curl http://localhost:8080/api/v1/cases/3
+```
+
+```bash
+curl -X POST http://localhost:8080/api/v1/cases/3/notes \
+  -H "Content-Type: application/json" \
+  -d '{"author":"Alice Morgan","noteText":"Customer provided supporting documents for the wire transfer. Sanctions screening remains under review."}'
+```
+
+```bash
+curl "http://localhost:8080/api/v1/watchlist/search?name=Viktor"
+```
+
+```bash
+curl http://localhost:8080/api/v1/watchlist-matches
+```
+
+```bash
+curl "http://localhost:8080/api/v1/watchlist-matches?txnId=5"
+```
 
 ---
 
