@@ -25,7 +25,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
@@ -81,6 +80,7 @@ public class InvestigationService {
         investigation.setOpenedAt(LocalDateTime.now());
         investigation.setPriority(priority);
         investigation.setState(InvestigationState.OPEN);
+        investigation.setInvestigationRef(buildTemporaryRef());
 
         alert.setStatus(AlertStatus.UNDER_REVIEW);
         alert.setAssignedTo(assignedOfficer);
@@ -198,6 +198,11 @@ public class InvestigationService {
 
     private String buildRef(Integer id) {
         String datePart = LocalDateTime.now().format(REF_DATE_FMT);
-        return String.format("INV-%s-%05d", datePart, id);
+        return String.format("INV%s-%05d", datePart, id);
+    }
+
+    private String buildTemporaryRef() {
+        String timePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
+        return "TMP" + timePart;
     }
 }
