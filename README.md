@@ -74,10 +74,25 @@ All write operations go through stored procedures — no direct SQL from the app
 | Script | Purpose |
 |---|---|
 | `db_create.sh` | Drops and recreates the database, loads tables, seed data, procedures, and views in dependency order |
+| `db_simulate_transactions.sh` | Simulates incoming transactions by inserting additional rows from `data/09_simulate_transactions_data.sql` one by one with a configurable delay |
 | `db_dump.sh` | Creates a timestamped MySQL dump including routines and triggers |
 | `db_reload.sh` | Restores the database from a dump file |
 | `rebuild_indexes.sh` | Runs `OPTIMIZE` and `ANALYZE` on tables for DBA maintenance |
 | `open_cases_report.sh` | Exports open, under-review, and escalated alerts to CSV |
+
+After running `db_create.sh`, the base seed data is already present in the database.
+If you want to simulate new transactions arriving over time, run:
+
+```bash
+cd scripts
+./db_simulate_transactions.sh
+```
+
+The script reads additional transaction statements from `data/09_simulate_transactions_data.sql` and inserts them one by one every `SLEEP_SECONDS` seconds.
+This simulates a live stream of incoming transactions instead of loading everything at once.
+
+When the application scheduler is enabled, newly inserted transactions with status `COMPLETED` can then be picked up automatically for screening.
+Depending on the screening result, transaction statuses may move to values such as `SCREENED`, `PENDING`, or `BLOCKED`, and matching rules may raise new alerts.
 
 ---
 
