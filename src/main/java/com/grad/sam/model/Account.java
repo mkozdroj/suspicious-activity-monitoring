@@ -2,6 +2,7 @@ package com.grad.sam.model;
 
 import com.grad.sam.enums.AccountStatus;
 import com.grad.sam.enums.AccountType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -63,13 +64,16 @@ public class Account {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
+    @Schema(hidden = true)
     private Customer customer;
 
     // One account can have many transactions — FK is on transaction side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<Txn> txns;
 
     // One account can have many alerts — FK is on alert side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<Alert> alerts;
 }
