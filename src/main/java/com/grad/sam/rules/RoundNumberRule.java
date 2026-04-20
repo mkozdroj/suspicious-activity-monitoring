@@ -19,7 +19,20 @@ public class RoundNumberRule implements AmlRule {
 
     @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (context.getTxn() == null) {
+            throw new IllegalArgumentException("Transaction in context must not be null.");
+        }
+
         BigDecimal amountUsd = context.getTxn().getAmountUsd();
+        if (amountUsd == null) {
+            throw new IllegalStateException("Transaction amountUsd must not be null.");
+        }
 
         BigDecimal divisor = (rule.getThresholdAmount() != null && rule.getThresholdAmount().compareTo(BigDecimal.ZERO) > 0)
                 ? rule.getThresholdAmount()

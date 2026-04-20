@@ -15,6 +15,19 @@ public class VelocityRule implements AmlRule {
 
     @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (context.getRecentTxns() == null) {
+            throw new IllegalStateException("Recent transactions list must not be null.");
+        }
+        if (context.getAccount() == null) {
+            throw new IllegalArgumentException("Account in context must not be null.");
+        }
+
         if (rule.getThresholdCount() == null) {
             return Optional.empty();
         }

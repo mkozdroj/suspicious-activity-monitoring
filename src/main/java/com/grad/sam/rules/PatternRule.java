@@ -22,11 +22,27 @@ public class PatternRule implements AmlRule {
 
     @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (context.getTxn() == null) {
+            throw new IllegalArgumentException("Transaction in context must not be null.");
+        }
+        if (context.getRecentTxns() == null) {
+            throw new IllegalStateException("Recent transactions list must not be null.");
+        }
+
         int repeatThreshold = rule.getThresholdCount() != null
                 ? rule.getThresholdCount()
                 : DEFAULT_REPEAT_THRESHOLD;
 
         BigDecimal currentAmount = context.getTxn().getAmountUsd();
+        if (currentAmount == null) {
+            throw new IllegalStateException("Transaction amountUsd must not be null.");
+        }
 
         Map<BigDecimal, Long> frequencyMap = Stream.concat(
                         context.getRecentTxns().stream().map(Txn::getAmountUsd),
