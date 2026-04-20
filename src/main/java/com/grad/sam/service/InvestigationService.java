@@ -10,7 +10,6 @@ import com.grad.sam.model.Alert;
 import com.grad.sam.model.Customer;
 import com.grad.sam.model.Investigation;
 import com.grad.sam.repository.AlertRepository;
-import com.grad.sam.repository.CustomerRepository;
 import com.grad.sam.repository.InvestigationRepository;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -55,7 +54,7 @@ public class InvestigationService {
     @Transactional
     public Investigation openCase(@NotNull @Positive Integer alertId,
                                   @NotBlank String assignedOfficer,
-                                  @NotNull Priority priority) {          // ⚠️ @NotBlank on an enum
+                                  @NotNull Priority priority) {
 
         Alert alert = alertRepository.findById(alertId)
                 .orElseThrow(() -> new DataNotFoundException(
