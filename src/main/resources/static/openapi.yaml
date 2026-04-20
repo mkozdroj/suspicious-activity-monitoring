@@ -1,0 +1,610 @@
+openapi: 3.0.3
+info:
+  title: Suspicious Activity Monitor API
+  version: v1
+  description: REST API for customer lookup, transaction screening, watchlist screening, and investigation case management.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Transactions
+    description: Endpoints for customer lookup and transaction screening.
+  - name: Investigations
+    description: Endpoints for opening and reviewing investigation cases.
+  - name: Watchlist
+    description: Endpoints for watchlist lookup and transaction match review.
+paths:
+  /api/v1/customers/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get customer by ID
+      description: Returns a customer profile for the supplied customer identifier.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 4
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+              examples:
+                seededCustomer:
+                  value:
+                    customerId: 4
+                    customerRef: CUST-00004
+                    fullName: Viktor Sokolov
+                    dateOfBirth: '1963-11-03'
+                    nationality: RU
+                    countryOfResidence: AE
+                    customerType: INDIVIDUAL
+                    riskRating: HIGH
+                    kycStatus: VERIFIED
+                    onboardedDate: '2021-02-28'
+                    isPep: false
+                    isActive: true
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/accounts/{id}/transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions for an account
+      description: Returns all transactions linked to the supplied account identifier.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 4
+      responses:
+        '200':
+          description: Transactions returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Txn'
+              examples:
+                seededTransactions:
+                  value:
+                    - txnId: 4
+                      txnRef: TXN-2026-000004
+                      counterpartyAccount: AE070331234567000999
+                      counterpartyBank: Emirates NBD
+                      counterpartyCountry: AE
+                      txnType: WIRE
+                      direction: DR
+                      amount: 480000.0
+                      currency: USD
+                      amountUsd: 480000.0
+                      txnDate: '2026-03-10'
+                      valueDate: '2026-03-12'
+                      status: COMPLETED
+                      description: Business transfer
+                    - txnId: 5
+                      txnRef: TXN-2026-000005
+                      counterpartyAccount: IR12345678901234
+                      counterpartyBank: Bank Mellat Iran
+                      counterpartyCountry: IR
+                      txnType: WIRE
+                      direction: DR
+                      amount: 125000.0
+                      currency: USD
+                      amountUsd: 125000.0
+                      txnDate: '2026-03-11'
+                      valueDate: '2026-03-13'
+                      status: PENDING
+                      description: Vendor payment
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases:
+    post:
+      tags: [Investigations]
+      summary: Open a case for an alert
+      description: Creates a new investigation linked to an existing alert. Success requires an existing alert that does not already have an investigation. The seed data also includes alerts that already have investigations, so a conflict-style error example is documented separately.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenCaseRequest'
+            examples:
+              successRequest:
+                summary: Example success payload
+                value:
+                  alertId: 6
+                  assignedOfficer: Alice Morgan
+                  priority: MEDIUM
+              seededConflictRequest:
+                summary: Seed-data example that returns an error
+                description: In the provided seed data, alert 6 already has an investigation.
+                value:
+                  alertId: 6
+                  assignedOfficer: Alice Morgan
+                  priority: MEDIUM
+      responses:
+        '201':
+          description: Case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseResponse'
+              examples:
+                createdCase:
+                  value:
+                    caseId: 21
+                    alertId: 6
+                    alertSeverity: MEDIUM
+                    status: OPEN
+                    assignedOfficer: aml.analyst2@hsbc.com
+                    openedAt: '2026-04-20T11:15:00'
+                    closedAt: null
+                    outcome: null
+                    findings: null
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidPriority:
+                  value:
+                    timestamp: '2026-04-20T12:30:45'
+                    status: 400
+                    errorCode: INVALID_ARGUMENT
+                    message: 'Invalid priority. Valid values: LOW, MEDIUM, HIGH, URGENT'
+        '404':
+          description: Alert not found or investigation already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                seededOutcome:
+                  summary: Seed-data conflict example
+                  value:
+                    timestamp: '2026-04-20T06:35:18.769340'
+                    status: 404
+                    errorCode: RESOURCE_NOT_FOUND
+                    message: 'Investigation already exists for alert id: 6'
+  /api/v1/cases/{id}:
+    get:
+      tags: [Investigations]
+      summary: Get case by ID
+      description: Returns investigation case details for the supplied case identifier.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 3
+      responses:
+        '200':
+          description: Case found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseResponse'
+              examples:
+                seededCase:
+                  value:
+                    caseId: 3
+                    alertId: 2
+                    alertSeverity: HIGH
+                    status: OPEN
+                    assignedOfficer: aml.senior@hsbc.com
+                    openedAt: '2026-03-11T15:00:00'
+                    closedAt: null
+                    outcome: null
+                    findings: Customer wired $125K to Bank Mellat Iran - sanctioned entity. OFAC check initiated. Customer account restricted pending review.
+        '404':
+          description: Case not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{id}/notes:
+    post:
+      tags: [Investigations]
+      summary: Add a case note
+      description: Appends a timestamped free-text note entry to the investigation findings history for the selected case.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseNoteRequest'
+            examples:
+              seededNote:
+                value:
+                  author: Alice Morgan
+                  noteText: Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+      responses:
+        '200':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseResponse'
+              examples:
+                updatedCase:
+                  value:
+                    caseId: 3
+                    alertId: 2
+                    alertSeverity: HIGH
+                    status: OPEN
+                    assignedOfficer: aml.senior@hsbc.com
+                    openedAt: '2026-03-11T15:00:00'
+                    closedAt: null
+                    outcome: null
+                    findings: |-
+                      Customer wired $125K to Bank Mellat Iran - sanctioned entity. OFAC check initiated. Customer account restricted pending review.
+                      [2026-04-20 06:40 | Alice Morgan] Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Case not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/watchlist/search:
+    get:
+      tags: [Watchlist]
+      summary: Search watchlist entries by name
+      description: Performs a case-insensitive substring search against watchlist entity names.
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          example: Viktor
+      responses:
+        '200':
+          description: Results returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Watchlist'
+              examples:
+                seededSearch:
+                  value:
+                    - watchlistId: 6
+                      listType: OFAC
+                      entityName: Viktor Alexandr Sokolov
+                      entityType: INDIVIDUAL
+                      country: RU
+                      dateOfBirth: '1963-11-03'
+                      reason: SDN - oligarch linked to sanctioned Russian entities
+                      listedDate: '2022-04-06'
+                      isActive: true
+        '400':
+          description: Missing or invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/watchlist-matches:
+    get:
+      tags: [Watchlist]
+      summary: List watchlist matches
+      description: Returns all recorded watchlist matches or filters them to a single transaction.
+      parameters:
+        - in: query
+          name: txnId
+          required: false
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Matches returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WatchlistMatch'
+              examples:
+                seededMatches:
+                  value:
+                    - matchId: 3
+                      watchlistId: 2
+                      entityName: Bank Mellat
+                      entityType: ENTITY
+                      listSource: OFAC
+                      matchScore: 98
+                      matchType: NAME
+                      status: CONFIRMED
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        customerId:
+          type: integer
+        customerRef:
+          type: string
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        nationality:
+          type: string
+        countryOfResidence:
+          type: string
+        customerType:
+          type: string
+        riskRating:
+          type: string
+        kycStatus:
+          type: string
+        onboardedDate:
+          type: string
+          format: date
+        isPep:
+          type: boolean
+        isActive:
+          type: boolean
+    Txn:
+      type: object
+      properties:
+        txnId:
+          type: integer
+        txnRef:
+          type: string
+        counterpartyAccount:
+          type: string
+          nullable: true
+        counterpartyBank:
+          type: string
+          nullable: true
+        counterpartyCountry:
+          type: string
+          nullable: true
+        txnType:
+          type: string
+        direction:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        amountUsd:
+          type: number
+        txnDate:
+          type: string
+          format: date
+        valueDate:
+          type: string
+          format: date
+        status:
+          type: string
+        description:
+          type: string
+          nullable: true
+    OpenCaseRequest:
+      type: object
+      description: Payload used to open a new investigation case for an alert.
+      required: [alertId, assignedOfficer]
+      properties:
+        alertId:
+          type: integer
+          description: Identifier of the alert that should be escalated into a case.
+          example: 6
+        assignedOfficer:
+          type: string
+          description: Full name of the assigned investigation officer.
+          example: Alice Morgan
+        priority:
+          type: string
+          description: Requested case priority. Defaults to MEDIUM when omitted.
+          enum: [LOW, MEDIUM, HIGH, URGENT]
+          default: MEDIUM
+    CaseNoteRequest:
+      type: object
+      description: Payload used to append a note to an investigation case.
+      required: [author, noteText]
+      properties:
+        author:
+          type: string
+          description: Person adding the note.
+          example: Alice Morgan
+        noteText:
+          type: string
+          description: Free-text note to append to the investigation findings.
+          example: Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+    ScreeningResult:
+      type: object
+      description: Combined AML and watchlist screening result for a transaction.
+      properties:
+        txnId:
+          type: integer
+          example: 5
+        txnRef:
+          type: string
+          example: TXN-2026-000005
+        customerName:
+          type: string
+          example: Viktor Sokolov
+        txnStatus:
+          type: string
+          example: PENDING
+        matchCount:
+          type: integer
+          example: 2
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertSummary'
+        watchlistMatches:
+          type: array
+          items:
+            $ref: '#/components/schemas/WatchlistMatch'
+    AlertSummary:
+      type: object
+      description: Compact alert information included in a screening response.
+      properties:
+        alertId:
+          type: integer
+          example: 2
+        ruleCategory:
+          type: string
+          example: GEOGRAPHY
+        severity:
+          type: string
+          example: CRITICAL
+        status:
+          type: string
+          example: ESCALATED
+        raisedAt:
+          type: string
+          format: date-time
+          example: '2026-03-11T14:22:00'
+    CaseResponse:
+      type: object
+      description: Investigation case details.
+      properties:
+        caseId:
+          type: integer
+          example: 3
+        alertId:
+          type: integer
+          example: 2
+        alertSeverity:
+          type: string
+          example: HIGH
+        status:
+          type: string
+          example: OPEN
+        assignedOfficer:
+          type: string
+          example: aml.senior@hsbc.com
+        openedAt:
+          type: string
+          format: date-time
+          example: '2026-03-11T15:00:00'
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        outcome:
+          type: string
+          nullable: true
+          example: ESCALATED
+        findings:
+          type: string
+          nullable: true
+          description: Accumulated investigation findings and appended case notes.
+          example: |-
+            Customer wired $125K to Bank Mellat Iran - sanctioned entity. OFAC check initiated. Customer account restricted pending review.
+            [2026-04-20 06:40 | Alice Morgan] Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+    Watchlist:
+      type: object
+      properties:
+        watchlistId:
+          type: integer
+        listType:
+          type: string
+        entityName:
+          type: string
+        entityType:
+          type: string
+        country:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+        listedDate:
+          type: string
+          format: date
+        isActive:
+          type: boolean
+    WatchlistMatch:
+      type: object
+      description: Watchlist match details associated with a transaction.
+      properties:
+        matchId:
+          type: integer
+          example: 3
+        watchlistId:
+          type: integer
+          example: 2
+        entityName:
+          type: string
+          example: Bank Mellat
+        entityType:
+          type: string
+          example: ENTITY
+        listSource:
+          type: string
+          example: OFAC
+        matchScore:
+          type: integer
+          example: 98
+        matchType:
+          type: string
+          example: NAME
+        status:
+          type: string
+          example: CONFIRMED
+    ErrorResponse:
+      type: object
+      description: Standard API error response.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-04-20T12:30:45'
+        status:
+          type: integer
+          example: 400
+        errorCode:
+          type: string
+          example: INVALID_ARGUMENT
+        message:
+          type: string
+          example: Request body validation failed
+        details:
+          type: array
+          items:
+            type: string
+            example: "txnId: Transaction ID is required"

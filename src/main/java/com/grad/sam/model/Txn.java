@@ -3,6 +3,7 @@ package com.grad.sam.model;
 import com.grad.sam.enums.TxnDirection;
 import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.enums.TxnType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -93,13 +94,16 @@ public class Txn {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
+    @Schema(hidden = true)
     private Account account;
 
     // One transaction can trigger many alerts
     @OneToMany(mappedBy = "txn", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<Alert> alerts;
 
     // One transaction can match many watchlist entries
     @OneToMany(mappedBy = "txn", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<WatchlistMatch> watchlistMatches;
 }

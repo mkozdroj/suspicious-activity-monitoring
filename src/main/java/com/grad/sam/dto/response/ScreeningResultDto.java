@@ -15,19 +15,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScreeningResultDto {
-    @NotBlank(message = "Transaction ID is required")
+    @NotNull(message = "Transaction ID is required")
     @Positive(message = "Transaction ID must be positive")
     private Integer txnId;
 
     @NotBlank(message = "Transaction reference is required")
-    @Positive(message = "Transaction reference must be positive")
     private String txnRef;
 
     @NotBlank(message = "Customer name is required")
     @Pattern(regexp = "^[A-Z][a-zA-Z'-]+ [A-Z][a-zA-Z'-]+$", message = "Customer name must be in the format 'First Last' with proper capitalization")
     private String customerName;
 
-    @NotBlank(message = "Account number is required")
+    @NotNull(message = "Transaction status is required")
     private TxnStatus txnStatus;
 
     @NotNull(message = "Match count is required")

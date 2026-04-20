@@ -9,7 +9,10 @@ import com.grad.sam.repository.WatchlistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -22,10 +25,8 @@ public class WatchlistController {
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;
 
-    // GET /api/v1/watchlist/search?name={name}
     @GetMapping("/watchlist/search")
-    public ResponseEntity<List<Watchlist>> searchWatchlist(
-            @RequestParam String name) {
+    public ResponseEntity<List<Watchlist>> searchWatchlist(@RequestParam String name) {
 
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
@@ -37,7 +38,6 @@ public class WatchlistController {
         return ResponseEntity.ok(matches);
     }
 
-    // GET /api/v1/watchlist-matches
     @GetMapping("/watchlist-matches")
     public ResponseEntity<List<WatchlistMatchDto>> listWatchlistMatches(
             @RequestParam(required = false) Integer txnId) {

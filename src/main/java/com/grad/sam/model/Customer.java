@@ -3,6 +3,7 @@ package com.grad.sam.model;
 import com.grad.sam.enums.CustomerType;
 import com.grad.sam.enums.KycStatus;
 import com.grad.sam.enums.RiskRating;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -76,8 +77,10 @@ public class Customer {
     private Boolean isActive = true;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<Account> accounts;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(hidden = true)
     private List<Investigation> investigations;
 }

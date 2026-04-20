@@ -59,4 +59,11 @@ public interface TxnRepository extends JpaRepository<Txn, Integer> {
     @Query("UPDATE Txn t SET t.status = :status WHERE t.txnId = :txnId")
     int updateStatus(@Param("txnId") Integer txnId,
                      @Param("status") TxnStatus status);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Txn t SET t.status = :newStatus WHERE t.txnId = :txnId AND t.status = :currentStatus")
+    int updateStatusIfCurrent(@Param("txnId") Integer txnId,
+                              @Param("currentStatus") TxnStatus currentStatus,
+                              @Param("newStatus") TxnStatus newStatus);
 }

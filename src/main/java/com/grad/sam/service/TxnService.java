@@ -43,4 +43,25 @@ public class TxnService {
         }
         log.info("Updated txn {} status to {}", txnId, status);
     }
+
+    @Transactional
+    public boolean claimCompletedForScreening(@NotNull @Positive Integer txnId) {
+        int rows = txnRepository.updateStatusIfCurrent(txnId, TxnStatus.COMPLETED, TxnStatus.PENDING);
+        if (rows == 1) {
+            log.info("Claimed txn {} for scheduled screening", txnId);
+            return true;
+        }
+        log.debug("Skipped claim for txn {} because it is no longer COMPLETED", txnId);
+        return false;
+    }
+
+    @Transactional
+    public void returnClaimToCompleted(@NotNull @Positive Integer txnId) {
+        int rows = txnRepository.updateStatusIfCurrent(txnId, TxnStatus.PENDING, TxnStatus.COMPLETED);
+        if (rows == 1) {
+            log.warn("Returned txn {} to COMPLETED after failed scheduled screening", txnId);
+        } else {
+            log.debug("Did not return txn {} to COMPLETED because status changed during processing", txnId);
+        }
+    }
 }
