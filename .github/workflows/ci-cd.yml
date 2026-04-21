@@ -92,8 +92,8 @@ jobs:
             echo "::error::JaCoCo report not found at $REPORT"
             exit 1
           fi
-          MISSED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
-          COVERED=$(awk -F',' 'NR>1 {sum += $6} END {print sum}' "$REPORT")
+          MISSED=$(awk -F',' 'NR>1 {sum += $4} END {print sum}' "$REPORT")
+          COVERED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
           TOTAL=$((MISSED + COVERED))
           if [ "$TOTAL" -eq 0 ]; then
             echo "::warning::No instructions found in JaCoCo report"
