@@ -71,14 +71,15 @@ All write operations go through stored procedures — no direct SQL from the app
 
 ### Shell Scripts
 
-| Script | Purpose |
-|---|---|
-| `db_create.sh` | Drops and recreates the database, loads tables, seed data, procedures, and views in dependency order |
+| Script                        | Purpose                                                                                                                                     |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `db_create.sh`                | Drops and recreates the database, loads tables, seed data, procedures, and views in dependency order                                        |
 | `db_simulate_transactions.sh` | Simulates incoming transactions by inserting additional rows from `data/09_simulate_transactions_data.sql` one by one with a configurable delay |
-| `db_dump.sh` | Creates a timestamped MySQL dump including routines and triggers |
-| `db_reload.sh` | Restores the database from a dump file |
-| `rebuild_indexes.sh` | Runs `OPTIMIZE` and `ANALYZE` on tables for DBA maintenance |
-| `open_cases_report.sh` | Exports open, under-review, and escalated alerts to CSV |
+| `db_dump.sh`                  | Creates a timestamped MySQL dump including routines and triggers                                                                            |
+| `db_reload.sh`                | Restores the database from a dump file                                                                                                      |
+| `docker_db_init.sh`           | Used to containerize database                                                                                                               |
+| `rebuild_indexes.sh`          | Runs `OPTIMIZE` and `ANALYZE` on tables for DBA maintenance                                                                                 |
+| `open_cases_report.sh`        | Exports open, under-review, and escalated alerts to CSV                                                                                     |
 
 After running `db_create.sh`, the base seed data is already present in the database.
 If you want to simulate new transactions arriving over time, run:
@@ -120,10 +121,6 @@ Six AML rules implemented, each behind the `AmlRule` interface and independently
 
 - **`RuleEngineService`** — loads all active `AlertRule` records, builds a `RuleContext` per transaction, runs every applicable rule, and calls the `raise_alert` stored procedure for each match
 - **`WatchlistScreeningService`** — normalises customer names, scores against all active watchlist entries, persists `WatchlistMatch` records, and updates transaction status (BLOCKED / PENDING / SCREENED)
-
-### DAO Layer
-
-Five DAO classes wrapping repository logic with domain-specific query methods: `AlertDao`, `AlertRuleDao`, `TxnDao`, `WatchlistDao`, `WatchlistMatchDao`
 
 ### Test Suite
 
@@ -209,6 +206,46 @@ This keeps controller classes focused on routing and business flow while the Ope
 - schema descriptions
 - seed-data-based sample payloads
 
+### Running the application with Docker
+
+The application can be easily run inside Docker containers for simplified setup and isolation. A Dockerfile and docker-compose.yml are included in the project root.
+
+
+#### Prerequisites
+
+- Docker installed and running on your machine
+- Docker Compose installed (usually included with Docker Desktop)
+- MySQL credentials configured in the `.env` file (see Environment Setup section above)
+
+#### Steps to Run
+
+##### 1. Start the application and database
+
+From the project root, run:
+
+```bash
+docker-compose up
+```
+##### 2. Stop the containers
+
+```bash
+docker-compose down -v
+```
+##### 3. Running database scripts
+
+If you need to execute SQL scripts inside MySQL container:
+
+###### 1. Start the containers in detached mode
+
+```bash
+docker-compose up -d
+```
+###### 2. Access MySQL shell
+
+```bash
+docker-compose exec mysql mysql -u appuser -p${DB_NON_ROOT_PASSWORD} ${DB_NAME}
+```
+
 ### Notes Workflow
 
 The case notes endpoint now uses the case ID in the path to identify the investigation:
@@ -279,6 +316,8 @@ DB_PORT=3306
 DB_NAME=sam
 DB_USER=root
 DB_PASSWORD=your_password_here
+DB_NON_ROOT_USER=appuser
+DB_NON_ROOT_PASSWORD=app_password_here
 ```
 
 > `.env` is in `.gitignore` — never commit it. Each team member keeps their own local copy.
