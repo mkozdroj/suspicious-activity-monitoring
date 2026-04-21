@@ -1,0 +1,58 @@
+name: SAM Pull Request Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [ opened, synchronize, reopened ]
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  pr-build-test:
+    name: Build & Test (PR)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Build, test & report coverage
+        run: |
+          ./mvnw verify -B --no-transfer-progress \
+            -Dspring.profiles.active=test
+
+      - name: Publish test results as PR comment
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: target/surefire-reports/**/*.xml
+          comment_title: "🧪 PR Test Results"
+
+      - name: Post JaCoCo coverage summary
+        uses: madrapps/jacoco-report@v1.6.1
+        with:
+          paths: target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 60
+          min-coverage-changed-files: 60
+          title: "📊 Code Coverage Report"
+          update-comment: true
+
+      - name: Verify Dockerfile builds (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: sam:pr-${{ github.event.number }}
