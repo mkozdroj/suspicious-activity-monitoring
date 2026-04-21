@@ -15,7 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -25,6 +28,7 @@ public class RuleEngineService {
     private final TxnRepository txnRepository;
     private final TxnService txnService;
     private final List<AmlRule> rules;
+    private final Map<String, AmlRule> rulesByCode;
     private final WatchlistScreeningService watchlistScreeningService;
     private final AlertService alertService;
 
@@ -89,11 +93,11 @@ public class RuleEngineService {
         if (rule == null) {
             throw new IllegalArgumentException("Alert rule must not be null.");
         }
-        if (rule.getRuleCategory() == null) {
+        if (rule.getRuleCode() == null || rule.getRuleCode().isBlank()) {
             return Optional.empty();
         }
 
-        AmlRule impl = findImplementation(rule).orElse(null);
+        AmlRule impl = rulesByCode.get(rule.getRuleCode());
         if (impl == null) {
             return Optional.empty();
         }
@@ -130,5 +134,16 @@ public class RuleEngineService {
         if (account.getAccountId() == null) {
             throw new IllegalArgumentException("Account id must not be null.");
         }
+    }
+
+    private Stream<Map.Entry<String, AmlRule>> ruleMappings(AmlRule rule) {
+        List<String> explicitRuleCodes = rule.getSupportedRuleCodes();
+        if (explicitRuleCodes == null) {
+            return Stream.of(Map.entry(rule.getSupportedCategory(), rule));
+        }
+
+        return explicitRuleCodes.stream()
+                .filter(code -> code != null && !code.isBlank())
+                .map(code -> Map.entry(code, rule));
     }
 }
