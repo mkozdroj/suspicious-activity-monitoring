@@ -92,7 +92,6 @@ jobs:
             echo "::error::JaCoCo report not found at $REPORT"
             exit 1
           fi
-          # Sum missed + covered instruction counts across all classes
           MISSED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
           COVERED=$(awk -F',' 'NR>1 {sum += $6} END {print sum}' "$REPORT")
           TOTAL=$((MISSED + COVERED))
@@ -207,10 +206,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # Branch-based tag: main → latest, develop → develop
+            # Branch-based tag: main → latest
             type=ref,event=branch
-            # PR tag (not pushed, just labelled)
-            type=ref,event=pr
             # Semantic version tag on annotated git tags
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -237,7 +234,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          exit-code: '0'    # Warn only — set to '1' to block on findings
+          exit-code: '0'
 
       - name: Upload Trivy SARIF results
         uses: github/codeql-action/upload-sarif@v3
@@ -251,78 +248,12 @@ jobs:
           echo "Digest:       ${{ steps.build-push.outputs.digest }}"
 
   # ─────────────────────────────────────────────
-  # STAGE 5 — DEPLOY TO PRODUCTION
-  # ─────────────────────────────────────────────
-  deploy-production:
-    name: Deploy → Production
-    runs-on: ubuntu-latest
-    needs: docker
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: http://${{ secrets.PROD_HOST }}:8080/swagger-ui/index.html
-
-    steps:
-      - name: Checkout source (for docker-compose)
-        uses: actions/checkout@v4
-
-      - name: Deploy to production via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            echo "=== Deploying SAM to PRODUCTION ==="
-
-            cd /opt/sam || { mkdir -p /opt/sam && cd /opt/sam; }
-
-            # Back up current image tag for rollback
-            CURRENT_TAG=$(docker inspect --format='{{index .RepoTags 0}}' sam-app 2>/dev/null || echo "none")
-            echo "Previous image: $CURRENT_TAG"
-
-            cat > .env <<EOF
-            DB_HOST=db
-            DB_PORT=3306
-            DB_NAME=sam
-            DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            APP_IMAGE=${{ env.IMAGE_NAME }}:latest
-            SPRING_PROFILES_ACTIVE=production
-            EOF
-
-            docker compose pull app
-            docker compose up -d --remove-orphans
-
-            # Health check
-            echo "Waiting for health endpoint..."
-            for i in $(seq 1 24); do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                http://localhost:8080/actuator/health || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "✅ Production deployment healthy (attempt $i)"
-                exit 0
-              fi
-              echo "  attempt $i — status $STATUS — waiting 5s..."
-              sleep 5
-            done
-
-            # Rollback on failure
-            echo "❌ Health check failed — rolling back to $CURRENT_TAG"
-            docker compose down
-            docker tag "$CURRENT_TAG" ${{ env.IMAGE_NAME }}:latest || true
-            docker compose up -d
-            docker compose logs --tail=50 app
-            exit 1
-
-  # ─────────────────────────────────────────────
   # POST-BUILD — Notifications
   # ─────────────────────────────────────────────
   notify:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [ build, test, code-quality, docker, deploy-production ]
+    needs: [ build, test, code-quality, docker ]
     if: failure()
 
     steps:
