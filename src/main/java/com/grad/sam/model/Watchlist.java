@@ -2,7 +2,6 @@ package com.grad.sam.model;
 
 import com.grad.sam.enums.ListType;
 import com.grad.sam.enums.WatchlistEntityType;
-import com.grad.sam.enums.WatchlistListType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;

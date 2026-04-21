@@ -6,11 +6,11 @@ import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Txn;
 import com.grad.sam.model.Watchlist;
 import com.grad.sam.model.WatchlistMatch;
-import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.repository.WatchlistMatchRepository;
 import com.grad.sam.repository.WatchlistRepository;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +23,7 @@ import java.util.List;
 @Slf4j
 @Service
 @Validated
+@RequiredArgsConstructor
 public class WatchlistScreeningService {
     public static final BigDecimal EXACT_MATCH_SCORE = new BigDecimal("100.00");
     public static final BigDecimal FUZZY_MATCH_SCORE = new BigDecimal("85.00");
@@ -32,17 +33,6 @@ public class WatchlistScreeningService {
     private final TxnService txnService;
     private final AlertService alertService;
 
-    public WatchlistScreeningService(
-            WatchlistRepository watchlistRepository,
-            WatchlistMatchRepository watchlistMatchRepository,
-            TxnService txnService,
-            AlertService alertService
-    ) {
-        this.watchlistRepository = watchlistRepository;
-        this.watchlistMatchRepository = watchlistMatchRepository;
-        this.txnService = txnService;
-        this.alertService = alertService;
-    }
 
     @Transactional
     public List<WatchlistMatch> screenCustomer(

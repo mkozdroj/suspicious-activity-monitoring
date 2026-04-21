@@ -45,11 +45,11 @@ public class AlertRule {
     @Positive
     @Digits(integer = 16, fraction = 2)
     @Column(name = "threshold_amount", precision = 18, scale = 2)
-    private BigDecimal thresholdAmount;         // USD threshold (nullable)
+    private BigDecimal thresholdAmount;
 
     @Positive
     @Column(name = "threshold_count")
-    private Integer thresholdCount;            // transaction count threshold (nullable)
+    private Integer thresholdCount;
 
     @Min(1)
     @Column(name = "lookback_days")

@@ -14,6 +14,7 @@ import com.grad.sam.repository.InvestigationRepository;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @Validated
+@RequiredArgsConstructor
 public class InvestigationService {
 
     private static final Map<InvestigationState, Set<InvestigationState>> ALLOWED_TRANSITIONS =
@@ -43,13 +45,6 @@ public class InvestigationService {
     private final InvestigationRepository investigationRepository;
     private final AlertRepository alertRepository;
 
-    public InvestigationService(InvestigationRepository investigationRepository,
-                                AlertRepository alertRepository) {
-        this.investigationRepository = investigationRepository;
-        this.alertRepository = alertRepository;
-    }
-
-    // Open Case
 
     @Transactional
     public Investigation openCase(@NotNull @Positive Integer alertId,
@@ -95,8 +90,6 @@ public class InvestigationService {
         return saved;
     }
 
-    // Update Case Status
-
     @Transactional
     public Investigation updateCaseStatus(@NotNull @Positive Integer investigationId,
                                           @NotNull InvestigationState newState,
@@ -133,8 +126,6 @@ public class InvestigationService {
         return saved;
     }
 
-    // Query helpers
-
     public List<Investigation> findOpenCases() {
         return investigationRepository.findByState(InvestigationState.OPEN);
     }
@@ -153,8 +144,6 @@ public class InvestigationService {
                         "Investigation not found for ref: " + ref));
     }
 
-    // Private validation helpers
-
     private void validateCloseInputs(Investigation investigation,
                                      InvestigationOutcome outcome,
                                      String findings) {
@@ -171,8 +160,6 @@ public class InvestigationService {
                             + ". Please provide the compliance officer's rationale before closing.");
         }
     }
-
-    // Private helper methods
 
     private boolean isValidTransition(InvestigationState from, InvestigationState to) {
         Set<InvestigationState> allowed = ALLOWED_TRANSITIONS.getOrDefault(from, Set.of());

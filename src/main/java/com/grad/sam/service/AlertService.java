@@ -4,7 +4,6 @@ import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.exception.DataNotFoundException;
-import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.AlertRule;
@@ -28,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Validated
 @RequiredArgsConstructor
 public class AlertService {
-
     private static final AtomicInteger ALERT_SEQUENCE = new AtomicInteger(0);
 
     private final AlertRepository alertRepository;

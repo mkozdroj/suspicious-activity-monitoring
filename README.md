@@ -414,7 +414,7 @@ curl "http://localhost:8080/api/v1/watchlist-matches?txnId=5"
 
 ## E/R Diagram
 
-![E/R Diagram](schema/diagram.png)
+![E/R Diagram](docs/diagram.png)
 
 ---
 

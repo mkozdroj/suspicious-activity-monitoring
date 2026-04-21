@@ -10,6 +10,8 @@ import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -20,30 +22,20 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RuleEngineService {
     private final AlertRuleRepository alertRuleRepository;
     private final TxnRepository txnRepository;
     private final TxnService txnService;
-    private final Map<String, AmlRule> rulesByCategory;
+    private final List<AmlRule> rules;
     private final WatchlistScreeningService watchlistScreeningService;
     private final AlertService alertService;
+    private Map<String, AmlRule> rulesByCategory;
 
-    public RuleEngineService(AlertRuleRepository alertRuleRepository,
-                             TxnRepository txnRepository,
-                             TxnService txnService,
-                             List<AmlRule> rules,
-                             WatchlistScreeningService watchlistScreeningService,
-                             AlertService alertService) {
-        this.alertRuleRepository = alertRuleRepository;
-        this.txnRepository = txnRepository;
-        this.txnService = txnService;
-        this.watchlistScreeningService = watchlistScreeningService;
-        this.alertService = alertService;
+    @PostConstruct
+    public void initRulesByCategory() {
         this.rulesByCategory = rules.stream()
-                .collect(Collectors.toMap(
-                        AmlRule::getSupportedCategory,
-                        r -> r,
-                        (existing, replacement) -> existing));
+                .collect(Collectors.toMap(AmlRule::getSupportedCategory, r -> r, (existing, replacement) -> existing));
     }
 
     public List<Long> screenTransaction(Txn txn, Account account) {
