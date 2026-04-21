@@ -11,6 +11,8 @@ tags:
     description: Endpoints for customer lookup and transaction screening.
   - name: Investigations
     description: Endpoints for opening and reviewing investigation cases.
+  - name: Reports
+    description: Endpoints for generating operational CSV reports.
   - name: Watchlist
     description: Endpoints for watchlist lookup and transaction match review.
 paths:
@@ -276,6 +278,176 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/open-cases:
+    post:
+      tags: [Reports]
+      summary: Generate open cases CSV report
+      description: Generates a CSV file containing alerts with status OPEN, UNDER_REVIEW, or ESCALATED and returns metadata about the saved report file.
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                generatedReport:
+                  value:
+                    reportName: open_cases_report_20260420_063000.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/open_cases_report_20260420_063000.csv
+                    recordCount: 14
+                    generatedAt: '2026-04-20T06:30:00'
+                    trigger: manual
+        '409':
+          description: Report generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/open-cases/email:
+    post:
+      tags: [Reports]
+      summary: Generate and email open cases report
+      description: Generates the CSV file, renders an HTML email using Thymeleaf, and sends the report as an attachment to the configured recipients.
+      responses:
+        '200':
+          description: Report generated and emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                emailedReport:
+                  value:
+                    reportName: open_cases_report_20260420_063000.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/open_cases_report_20260420_063000.csv
+                    recordCount: 14
+                    generatedAt: '2026-04-20T06:30:00'
+                    trigger: manual-email
+                    emailSent: true
+                    emailedTo:
+                      - aml.team@example.com
+                      - compliance.lead@example.com
+        '409':
+          description: Email configuration missing or email delivery failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/investigator-workload:
+    post:
+      tags: [Reports]
+      summary: Generate investigator workload report
+      description: Generates a CSV file summarising workload per investigator, including assigned cases, currently open cases, cases closed in the last 24 hours and 7 days, and average closure time.
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                generatedWorkloadReport:
+                  value:
+                    reportName: investigator_workload_report_20260421_101500.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/investigator_workload_report_20260421_101500.csv
+                    recordCount: 20
+                    generatedAt: '2026-04-21T10:15:00'
+                    trigger: manual
+                    emailSent: false
+                    emailedTo: []
+        '409':
+          description: Report generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/investigator-workload/email:
+    post:
+      tags: [Reports]
+      summary: Generate and email investigator workload report
+      description: Generates the investigator workload CSV file, renders an HTML email summary, and sends the report as an attachment to the configured recipients.
+      responses:
+        '200':
+          description: Report generated and emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                emailedWorkloadReport:
+                  value:
+                    reportName: investigator_workload_report_20260421_112159.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/investigator_workload_report_20260421_112159.csv
+                    recordCount: 20
+                    generatedAt: '2026-04-21T11:21:59'
+                    trigger: manual-email
+                    emailSent: true
+                    emailedTo:
+                      - test@sam.local
+        '409':
+          description: Email configuration missing or email delivery failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/rule-effectiveness:
+    post:
+      tags: [Reports]
+      summary: Generate rule effectiveness report
+      description: Generates a CSV file summarising alert outcomes and action rate per AML rule.
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                generatedRuleEffectivenessReport:
+                  value:
+                    reportName: rule_effectiveness_report_20260421_120000.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/rule_effectiveness_report_20260421_120000.csv
+                    recordCount: 38
+                    generatedAt: '2026-04-21T12:00:00'
+                    trigger: manual
+                    emailSent: false
+                    emailedTo: []
+        '409':
+          description: Report generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/rule-effectiveness/email:
+    post:
+      tags: [Reports]
+      summary: Generate and email rule effectiveness report
+      description: Generates the rule effectiveness CSV file, renders a business-oriented HTML summary, and sends the report as an attachment to the configured recipients.
+      responses:
+        '200':
+          description: Report generated and emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenCasesReportResponse'
+              examples:
+                emailedRuleEffectivenessReport:
+                  value:
+                    reportName: rule_effectiveness_report_20260421_120000.csv
+                    reportPath: /Users/marta/Desktop/Coding/sam/reports/rule_effectiveness_report_20260421_120000.csv
+                    recordCount: 38
+                    generatedAt: '2026-04-21T12:00:00'
+                    trigger: manual-email
+                    emailSent: true
+                    emailedTo:
+                      - test@sam.local
+        '409':
+          description: Email configuration missing or email delivery failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/watchlist/search:
     get:
       tags: [Watchlist]
@@ -533,6 +705,36 @@ components:
           example: |-
             Customer wired $125K to Bank Mellat Iran - sanctioned entity. OFAC check initiated. Customer account restricted pending review.
             [2026-04-20 06:40 | Alice Morgan] Customer provided supporting documents for the wire transfer. Sanctions screening remains under review.
+    OpenCasesReportResponse:
+      type: object
+      description: Metadata for a generated open cases CSV report.
+      properties:
+        reportName:
+          type: string
+          example: open_cases_report_20260420_063000.csv
+        reportPath:
+          type: string
+          example: /Users/marta/Desktop/Coding/sam/reports/open_cases_report_20260420_063000.csv
+        recordCount:
+          type: integer
+          example: 14
+        generatedAt:
+          type: string
+          format: date-time
+          example: '2026-04-20T06:30:00'
+        trigger:
+          type: string
+          example: manual
+        emailSent:
+          type: boolean
+          example: true
+        emailedTo:
+          type: array
+          items:
+            type: string
+          example:
+            - aml.team@example.com
+            - compliance.lead@example.com
     Watchlist:
       type: object
       properties:

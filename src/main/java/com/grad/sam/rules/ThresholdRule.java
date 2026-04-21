@@ -4,6 +4,7 @@ import com.grad.sam.model.AlertRule;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -12,6 +13,11 @@ public class ThresholdRule implements AmlRule {
     @Override
     public String getSupportedCategory() {
         return "STRUCTURING";
+    }
+
+    @Override
+    public List<String> getSupportedRuleCodes() {
+        return List.of();
     }
 
     @Override

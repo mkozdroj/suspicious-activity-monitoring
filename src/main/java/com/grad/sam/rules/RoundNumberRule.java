@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -15,6 +16,11 @@ public class RoundNumberRule implements AmlRule {
     @Override
     public String getSupportedCategory() {
         return "PATTERN";
+    }
+
+    @Override
+    public List<String> getSupportedRuleCodes() {
+        return List.of();
     }
 
     @Override

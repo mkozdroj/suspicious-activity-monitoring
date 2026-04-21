@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Investigator Workload Report</title>
+</head>
+<body style="margin:0;padding:24px;background-color:#f5f7f8;font-family:Arial,sans-serif;color:#1f2933;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:900px;margin:0 auto;background:#ffffff;border-collapse:collapse;">
+    <tr>
+        <td style="padding:24px 28px 8px 28px;">
+            <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#486581;">Suspicious Activity Monitor</p>
+            <h1 style="margin:0;font-size:28px;line-height:1.2;color:#102a43;">Investigator Workload Report</h1>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:0 28px 24px 28px;">
+            <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334e68;">
+                The latest investigator workload report has been generated and attached as a CSV file.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;border-collapse:collapse;background:#f0f4f8;">
+                <tr>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Generated at</strong><br><span th:text="${generatedAt}">2026-04-21 11:21:59</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Total cases</strong><br><span th:text="${recordCount}">20</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Analysts</strong><br><span th:text="${analystCount}">3</span></td>
+                </tr>
+                <tr>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Closed last 24h since</strong><br><span th:text="${closedLast24HoursSince}">2026-04-20 11:21:59</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Closed last 7d since</strong><br><span th:text="${closedLast7DaysSince}">2026-04-14 11:21:59</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Trigger</strong><br><span th:text="${trigger}">manual-email</span></td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;">
+                        <strong>Attachment</strong><br><span th:text="${reportName}">investigator_workload_report_20260421_112159.csv</span>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 style="margin:0 0 12px 0;font-size:18px;color:#102a43;">Analyst Summary</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-size:13px;">
+                <thead>
+                <tr style="background:#102a43;color:#ffffff;">
+                    <th align="left" style="padding:10px 12px;">Analyst</th>
+                    <th align="left" style="padding:10px 12px;">Assigned</th>
+                    <th align="left" style="padding:10px 12px;">Open</th>
+                    <th align="left" style="padding:10px 12px;">Closed Last 24 Hours</th>
+                    <th align="left" style="padding:10px 12px;">Closed Last 7 Days</th>
+                    <th align="left" style="padding:10px 12px;">Avg closure (h)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(rows)}">
+                    <td colspan="6" style="padding:12px;border:1px solid #d9e2ec;color:#52606d;">No investigations were available for workload reporting.</td>
+                </tr>
+                <tr th:each="row : ${rows}" style="background:#ffffff;">
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.analyst()}">aml.analyst1@hsbc.com</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.assignedCases()}">8</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.openCases()}">5</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.closedLast24Hours()}">1</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.closedLast7Days()}">3</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${row.averageClosureHours()}">42.50</td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

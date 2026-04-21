@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Open Cases Report</title>
+</head>
+<body style="margin:0;padding:24px;background-color:#f5f7f8;font-family:Arial,sans-serif;color:#1f2933;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:900px;margin:0 auto;background:#ffffff;border-collapse:collapse;">
+    <tr>
+        <td style="padding:24px 28px 8px 28px;">
+            <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#486581;">Suspicious Activity Monitor</p>
+            <h1 style="margin:0;font-size:28px;line-height:1.2;color:#102a43;">Open Cases Report</h1>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:0 28px 24px 28px;">
+            <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334e68;">
+                The latest report has been generated and attached as a CSV file.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;border-collapse:collapse;background:#f0f4f8;">
+                <tr>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Generated at</strong><br><span th:text="${generatedAt}">2026-04-20 14:15:00</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Records</strong><br><span th:text="${recordCount}">14</span></td>
+                    <td style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;"><strong>Trigger</strong><br><span th:text="${trigger}">scheduler</span></td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;">
+                        <strong>Period covered</strong><br>
+                        <span th:if="${periodStart != null and periodEnd != null}" th:text="${periodStart + ' to ' + periodEnd}">2026-04-01 09:15:00 to 2026-04-20 14:15:00</span>
+                        <span th:if="${periodStart == null or periodEnd == null}">No alerts matched the report criteria.</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding:14px 16px;border:1px solid #d9e2ec;font-size:14px;">
+                        <strong>Attachment</strong><br><span th:text="${reportName}">open_cases_report_20260420_141500.csv</span>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 style="margin:0 0 12px 0;font-size:18px;color:#102a43;">Summary</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:16px;border:1px solid #d9e2ec;background:#fffbea;font-size:14px;">
+                        <strong>Open</strong><br><span th:text="${openCount}">12</span>
+                    </td>
+                    <td style="padding:16px;border:1px solid #d9e2ec;background:#fff1f2;font-size:14px;">
+                        <strong>Escalated</strong><br><span th:text="${escalatedCount}">3</span>
+                    </td>
+                    <td style="padding:16px;border:1px solid #d9e2ec;background:#effcf6;font-size:14px;">
+                        <strong>Under Review</strong><br><span th:text="${underReviewCount}">9</span>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 style="margin:0 0 12px 0;font-size:18px;color:#102a43;">Case Categories</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-size:13px;">
+                <thead>
+                <tr style="background:#102a43;color:#ffffff;">
+                    <th align="left" style="padding:10px 12px;">Category</th>
+                    <th align="left" style="padding:10px 12px;">Count</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(categorySummaries)}">
+                    <td colspan="2" style="padding:12px;border:1px solid #d9e2ec;color:#52606d;">No categories matched the report criteria.</td>
+                </tr>
+                <tr th:each="categorySummary : ${categorySummaries}" style="background:#ffffff;">
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${categorySummary.category()}">GEOGRAPHY</td>
+                    <td style="padding:10px 12px;border:1px solid #d9e2ec;" th:text="${categorySummary.count()}">8</td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

@@ -12,21 +12,59 @@ import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RuleEngineService {
     private final AlertRuleRepository alertRuleRepository;
     private final TxnRepository txnRepository;
     private final TxnService txnService;
     private final List<AmlRule> rules;
+    private final Map<String, AmlRule> rulesByCode;
     private final WatchlistScreeningService watchlistScreeningService;
     private final AlertService alertService;
+
+    @Autowired
+    public RuleEngineService(AlertRuleRepository alertRuleRepository,
+                             TxnRepository txnRepository,
+                             TxnService txnService,
+                             List<AmlRule> rules,
+                             Map<String, AmlRule> rulesByCode,
+                             WatchlistScreeningService watchlistScreeningService,
+                             AlertService alertService) {
+        this.alertRuleRepository = alertRuleRepository;
+        this.txnRepository = txnRepository;
+        this.txnService = txnService;
+        this.rules = rules;
+        this.rulesByCode = rulesByCode;
+        this.watchlistScreeningService = watchlistScreeningService;
+        this.alertService = alertService;
+    }
+
+    public RuleEngineService(AlertRuleRepository alertRuleRepository,
+                             TxnRepository txnRepository,
+                             TxnService txnService,
+                             List<AmlRule> rules,
+                             WatchlistScreeningService watchlistScreeningService,
+                             AlertService alertService) {
+        this(
+                alertRuleRepository,
+                txnRepository,
+                txnService,
+                rules,
+                buildRulesByCode(rules),
+                watchlistScreeningService,
+                alertService
+        );
+    }
 
     public List<Long> screenTransaction(Txn txn, Account account) {
         validateRequiredInput(txn, account);
@@ -89,11 +127,14 @@ public class RuleEngineService {
         if (rule == null) {
             throw new IllegalArgumentException("Alert rule must not be null.");
         }
-        if (rule.getRuleCategory() == null) {
+        if (rule.getRuleCode() == null || rule.getRuleCode().isBlank()) {
             return Optional.empty();
         }
 
-        AmlRule impl = findImplementation(rule).orElse(null);
+        AmlRule impl = rulesByCode.get(rule.getRuleCode());
+        if (impl == null) {
+            impl = findImplementation(rule).orElse(null);
+        }
         if (impl == null) {
             return Optional.empty();
         }
@@ -130,5 +171,39 @@ public class RuleEngineService {
         if (account.getAccountId() == null) {
             throw new IllegalArgumentException("Account id must not be null.");
         }
+    }
+
+    private Stream<Map.Entry<String, AmlRule>> ruleMappings(AmlRule rule) {
+        List<String> explicitRuleCodes = rule.getSupportedRuleCodes();
+        if (explicitRuleCodes == null) {
+            return Stream.of(Map.entry(rule.getSupportedCategory(), rule));
+        }
+
+        return explicitRuleCodes.stream()
+                .filter(code -> code != null && !code.isBlank())
+                .map(code -> Map.entry(code, rule));
+    }
+
+    private static Map<String, AmlRule> buildRulesByCode(List<AmlRule> rules) {
+        if (rules == null) {
+            return Map.of();
+        }
+
+        return rules.stream()
+                .flatMap(rule -> {
+                    List<String> supportedRuleCodes = rule.getSupportedRuleCodes();
+                    if (supportedRuleCodes == null || supportedRuleCodes.isEmpty()) {
+                        return Stream.empty();
+                    }
+
+                    return supportedRuleCodes.stream()
+                            .filter(code -> code != null && !code.isBlank())
+                            .map(code -> Map.entry(code, rule));
+                })
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (existing, replacement) -> existing
+                ));
     }
 }
