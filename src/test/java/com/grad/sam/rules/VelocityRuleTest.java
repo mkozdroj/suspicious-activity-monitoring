@@ -133,6 +133,60 @@ class VelocityRuleTest {
         assertEquals("VELOCITY", rule.getSupportedCategory());
     }
 
+    @Test
+    void supports_returns_true_for_velocity_rule_code() {
+        assertTrue(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_null_rule() {
+        assertFalse(rule.supports(null));
+    }
+
+    @Test
+    void supports_returns_false_when_rule_code_is_null() {
+        alertRule.setRuleCode(null);
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_non_velocity_rule_code() {
+        alertRule.setRuleCode("GEO-001");
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void throws_when_context_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(null, alertRule));
+    }
+
+    @Test
+    void throws_when_rule_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(buildContext(List.of()), null));
+    }
+
+    @Test
+    void throws_when_recent_transactions_are_null() {
+        RuleContext ctx = RuleContext.builder()
+                .txn(new Txn())
+                .account(account)
+                .recentTxns(null)
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_account_is_null() {
+        RuleContext ctx = RuleContext.builder()
+                .txn(new Txn())
+                .account(null)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
     // helper methods
     private List<Txn> buildTxns(int count) {
         return IntStream.range(0, count)

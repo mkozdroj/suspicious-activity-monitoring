@@ -44,8 +44,6 @@ class RuleEngineServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(amlRule.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
-
         service = new RuleEngineService(
                 alertRuleRepository,
                 txnRepository,
@@ -72,6 +70,7 @@ class RuleEngineServiceTest {
         txn.setAccount(account);
 
         activeRule = buildRule(1, "STR-001", RuleCategory.STRUCTURING, 30);
+        stubSupports(amlRule, "STR-");
     }
 
 
@@ -97,7 +96,7 @@ class RuleEngineServiceTest {
     void screenTransaction_returns_multiple_alert_ids_when_multiple_rules_fire() {
         AlertRule secondRule = buildRule(2, "VEL-001", RuleCategory.VELOCITY, 7);
         AmlRule velocityImpl = mock(AmlRule.class);
-        when(velocityImpl.getSupportedCategory()).thenReturn(RuleCategory.VELOCITY.name());
+        stubSupports(velocityImpl, "VEL-");
 
         service = new RuleEngineService(
                 alertRuleRepository, txnRepository, txnService,
@@ -217,6 +216,60 @@ class RuleEngineServiceTest {
         assertEquals(5L, result.get(0));
     }
 
+    @Test
+    void screenTransaction_skips_rule_when_no_implementation_supports_rule_code() {
+        AlertRule unsupportedRule = buildRule(4, "ZZZ-001", RuleCategory.STRUCTURING, 30);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(unsupportedRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
+    }
+
+    @Test
+    void screenTransaction_throws_when_active_rules_query_returns_null() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(null);
+
+        assertThrows(IllegalStateException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_throws_when_recent_transactions_query_returns_null() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(null);
+
+        assertThrows(IllegalStateException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_continues_when_customer_name_is_missing_for_watchlist_screening() {
+        customer.setFullName("   ");
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(watchlistScreeningService, never()).screenCustomer(any(), any(), any());
+    }
+
+    @Test
+    void screenTransaction_throws_when_transaction_id_is_null() {
+        txn.setTxnId(null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_throws_when_account_id_is_null() {
+        account.setAccountId(null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.screenTransaction(txn, account));
+    }
+
     // screenTransaction — lookback days
 
     @Test
@@ -251,9 +304,7 @@ class RuleEngineServiceTest {
         verify(txnRepository).findRecentByAccount(10, 42, 30);
     }
 
-    // -------------------------------------------------------------------------
     // screenTransaction — RuleContext
-    // -------------------------------------------------------------------------
 
     @Test
     void screenTransaction_passes_correct_context_to_rule_implementation() {
@@ -308,7 +359,7 @@ class RuleEngineServiceTest {
         AlertRule throwingRule = buildRule(2, "STR-002", RuleCategory.STRUCTURING, 30);
         AlertRule goodRule     = buildRule(3, "VEL-001", RuleCategory.VELOCITY, 30);
         AmlRule velocityImpl   = mock(AmlRule.class);
-        when(velocityImpl.getSupportedCategory()).thenReturn(RuleCategory.VELOCITY.name());
+        stubSupports(velocityImpl, "VEL-");
 
         service = new RuleEngineService(
                 alertRuleRepository, txnRepository, txnService,
@@ -338,8 +389,8 @@ class RuleEngineServiceTest {
     void constructor_keeps_first_rule_when_two_rules_share_the_same_category() {
         AmlRule firstImpl  = mock(AmlRule.class);
         AmlRule secondImpl = mock(AmlRule.class);
-        when(firstImpl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
-        when(secondImpl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
+        stubSupports(firstImpl, "STR-");
+        stubSupports(secondImpl, "STR-");
 
         service = new RuleEngineService(
                 alertRuleRepository, txnRepository, txnService,
@@ -392,5 +443,14 @@ class RuleEngineServiceTest {
         t.setAmountUsd(new BigDecimal("5000.00"));
         t.setTxnDate(LocalDate.now().minusDays(2));
         return t;
+    }
+
+    private void stubSupports(AmlRule rule, String prefix) {
+        lenient().when(rule.supports(any(AlertRule.class))).thenAnswer(invocation -> {
+            AlertRule candidate = invocation.getArgument(0);
+            return candidate != null
+                    && candidate.getRuleCode() != null
+                    && candidate.getRuleCode().startsWith(prefix);
+        });
     }
 }

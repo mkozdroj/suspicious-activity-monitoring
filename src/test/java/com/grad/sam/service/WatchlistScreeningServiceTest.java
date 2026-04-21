@@ -321,13 +321,13 @@ class WatchlistScreeningServiceTest {
     }
 
     @Test
-    void blockIfSanctioned_wraps_unexpected_errors_as_RuntimeException() {
+    void blockIfSanctioned_wraps_unexpected_errors_as_IllegalStateException() {
         WatchlistMatch exact = buildMatch(EXACT_SCORE);
 
         doThrow(new RuntimeException("DB down"))
                 .when(txnService).updateTxnStatus(42, TxnStatus.BLOCKED);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> service.blockIfSanctioned(txn, List.of(exact)));
         assertTrue(ex.getMessage().contains("Failed to evaluate sanction status"));
     }
@@ -554,13 +554,13 @@ class WatchlistScreeningServiceTest {
     }
 
     @Test
-    void blockIfSanctioned_wraps_alertService_failure_as_RuntimeException() {
+    void blockIfSanctioned_wraps_alertService_failure_as_IllegalStateException() {
         WatchlistMatch exact = buildMatch(EXACT_SCORE);
 
         doThrow(new RuntimeException("mail server down"))
                 .when(alertService).raiseAlert(eq(42), anyString(), anyString());
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> service.blockIfSanctioned(txn, List.of(exact)));
         assertTrue(ex.getMessage().contains("Failed to evaluate sanction status"));
         assertNotNull(ex.getCause());

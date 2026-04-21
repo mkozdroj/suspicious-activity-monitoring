@@ -145,6 +145,73 @@ class RoundNumberRuleTest {
         assertEquals(RuleCategory.PATTERN.name(), rule.getSupportedCategory());
     }
 
+    @Test
+    void supports_returns_true_for_round_number_rule_code() {
+        assertTrue(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_null_rule() {
+        assertFalse(rule.supports(null));
+    }
+
+    @Test
+    void supports_returns_false_when_rule_code_is_null() {
+        alertRule.setRuleCode(null);
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_non_round_number_rule_code() {
+        alertRule.setRuleCode("PAT-001");
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void throws_when_context_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(null, alertRule));
+    }
+
+    @Test
+    void throws_when_rule_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(buildContext("1000.00"), null));
+    }
+
+    @Test
+    void throws_when_transaction_is_null() {
+        RuleContext ctx = RuleContext.builder()
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_amount_usd_is_null() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        txn.setTxnRef("TXN-RND-NULL");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(txn)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void falls_back_to_default_divisor_when_threshold_is_negative() {
+        alertRule.setThresholdAmount(new BigDecimal("-500.00"));
+        RuleContext ctx = buildContext("3000.00");
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+    }
+
     // helper methods
     private RuleContext buildContext(String amountUsd) {
         Txn txn = new Txn();

@@ -137,6 +137,47 @@ class GeographyRuleTest {
         assertEquals("GEOGRAPHY", rule.getSupportedCategory());
     }
 
+    @Test
+    void supports_returns_true_for_geography_rule_code() {
+        assertTrue(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_null_rule() {
+        assertFalse(rule.supports(null));
+    }
+
+    @Test
+    void supports_returns_false_when_rule_code_is_null() {
+        alertRule.setRuleCode(null);
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_non_geography_rule_code() {
+        alertRule.setRuleCode("VEL-001");
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void fires_for_trimmed_high_risk_country_from_custom_configuration() {
+        rule.setHighRiskCountries(List.of(" ir ", " ru "));
+        RuleContext ctx = buildContext("IR");
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void does_not_fire_when_country_has_spaces_because_input_is_not_trimmed() {
+        RuleContext ctx = buildContext(" IR ");
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertFalse(result.isPresent());
+    }
+
     // Helper methods
 
     private RuleContext buildContext(String counterpartyCountry) {

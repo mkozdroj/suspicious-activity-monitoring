@@ -10,15 +10,12 @@ import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -30,13 +27,6 @@ public class RuleEngineService {
     private final List<AmlRule> rules;
     private final WatchlistScreeningService watchlistScreeningService;
     private final AlertService alertService;
-    private Map<String, AmlRule> rulesByCategory;
-
-    @PostConstruct
-    public void initRulesByCategory() {
-        this.rulesByCategory = rules.stream()
-                .collect(Collectors.toMap(AmlRule::getSupportedCategory, r -> r, (existing, replacement) -> existing));
-    }
 
     public List<Long> screenTransaction(Txn txn, Account account) {
         validateRequiredInput(txn, account);
@@ -103,7 +93,7 @@ public class RuleEngineService {
             return Optional.empty();
         }
 
-        AmlRule impl = rulesByCategory.get(rule.getRuleCategory().name());
+        AmlRule impl = findImplementation(rule).orElse(null);
         if (impl == null) {
             return Optional.empty();
         }
@@ -119,6 +109,12 @@ public class RuleEngineService {
             log.error("Rule evaluation failed for rule_code '{}': {}", rule.getRuleCode(), e.getMessage(), e);
             return Optional.empty();
         }
+    }
+
+    private Optional<AmlRule> findImplementation(AlertRule rule) {
+        return rules.stream()
+                .filter(impl -> impl.supports(rule))
+                .findFirst();
     }
 
     private void validateRequiredInput(Txn txn, Account account) {

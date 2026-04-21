@@ -53,7 +53,7 @@ public class WatchlistScreeningService {
         return matches;
     }
 
-    public void blockIfSanctioned(@NotBlank Txn txn, List<WatchlistMatch> matches) {
+    public void blockIfSanctioned(@NotNull Txn txn, @NotNull List<WatchlistMatch> matches) {
         try {
             boolean sanctioned = matches.stream()
                     .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
@@ -66,7 +66,7 @@ public class WatchlistScreeningService {
 
         } catch (Exception e) {
             log.error("Unexpected error in blockIfSanctioned for txn: {}", txn.getTxnId(), e);
-            throw new RuntimeException("Failed to evaluate sanction status", e);
+            throw new IllegalStateException("Failed to evaluate sanction status", e);
         }
     }
 

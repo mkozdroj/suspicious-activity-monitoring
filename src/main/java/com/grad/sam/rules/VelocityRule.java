@@ -14,6 +14,13 @@ public class VelocityRule implements AmlRule {
     }
 
     @Override
+    public boolean supports(AlertRule rule) {
+        return rule != null
+                && rule.getRuleCode() != null
+                && rule.getRuleCode().startsWith("VEL-");
+    }
+
+    @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
         if (context == null) {
             throw new IllegalArgumentException("Rule context must not be null.");

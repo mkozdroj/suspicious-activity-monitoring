@@ -4,6 +4,7 @@ import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.exception.DataNotFoundException;
+import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.Alert;
 import com.grad.sam.model.AlertRule;
@@ -56,7 +57,7 @@ public class AlertService {
                             @NotNull String description) {
 
         Txn txn = txnRepository.findById(txnId)
-                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + txnId));
+                .orElseThrow(() -> new DataNotFoundException("Transaction not found for id: " + txnId));
 
         Account account = txn.getAccount();
         if (account == null) {
@@ -67,7 +68,7 @@ public class AlertService {
         try {
             category = RuleCategory.valueOf(alertType.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported alert type: " + alertType, e);
+            throw new InvalidInputException("Unsupported alert type: " + alertType);
         }
 
         AlertRule rule = alertRuleRepository.findByRuleCategoryAndIsActiveTrue(category).stream()

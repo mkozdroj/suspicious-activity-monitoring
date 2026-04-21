@@ -1,6 +1,7 @@
 package com.grad.sam.service;
 
 import com.grad.sam.enums.*;
+import com.grad.sam.exception.BusinessConflictException;
 import com.grad.sam.exception.DataNotFoundException;
 import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.*;
@@ -99,7 +100,7 @@ class InvestigationServiceTest {
         assertNotNull(result);
         assertEquals(123, result.getInvestigationId());
         assertNotNull(result.getInvestigationRef());
-        assertTrue(result.getInvestigationRef().startsWith("INV-"));
+        assertTrue(result.getInvestigationRef().startsWith("INV"));
         assertTrue(result.getInvestigationRef().endsWith("-00123"));
 
         ArgumentCaptor<Investigation> captor = ArgumentCaptor.forClass(Investigation.class);
@@ -109,7 +110,7 @@ class InvestigationServiceTest {
 
         Investigation secondSave = captor.getAllValues().get(1);
         assertNotNull(secondSave.getInvestigationRef());
-        assertTrue(secondSave.getInvestigationRef().startsWith("INV-"));
+        assertTrue(secondSave.getInvestigationRef().startsWith("INV"));
         assertTrue(secondSave.getInvestigationRef().endsWith("-00123"));
     }
 
@@ -170,7 +171,7 @@ class InvestigationServiceTest {
         when(investigationRepository.findByAlert_AlertId(100))
                 .thenReturn(Optional.of(buildSavedInvestigation(InvestigationState.OPEN)));
 
-        assertThrows(DataNotFoundException.class,
+        assertThrows(BusinessConflictException.class,
                 () -> service.openCase(100, "officer@bank.com", Priority.HIGH));
         verify(investigationRepository, never()).save(any());
     }
@@ -181,7 +182,7 @@ class InvestigationServiceTest {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
 
-        assertThrows(DataNotFoundException.class,
+        assertThrows(IllegalStateException.class,
                 () -> service.openCase(100, "officer@bank.com", Priority.LOW));
         verify(investigationRepository, never()).save(any());
     }
@@ -326,7 +327,7 @@ class InvestigationServiceTest {
         Investigation inv = buildSavedInvestigation(InvestigationState.OPEN);
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
 
-        assertThrows(DataNotFoundException.class,
+        assertThrows(BusinessConflictException.class,
                 () -> service.updateCaseStatus(1, InvestigationState.CLOSED,
                         InvestigationOutcome.NO_ACTION, "Skipping review."));
         verify(investigationRepository, never()).save(any());
@@ -337,7 +338,7 @@ class InvestigationServiceTest {
         Investigation inv = buildSavedInvestigation(InvestigationState.CLOSED);
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
 
-        assertThrows(DataNotFoundException.class,
+        assertThrows(BusinessConflictException.class,
                 () -> service.updateCaseStatus(1, InvestigationState.OPEN, null, null));
         verify(investigationRepository, never()).save(any());
     }

@@ -23,6 +23,13 @@ public class GeographyRule implements AmlRule {
     }
 
     @Override
+    public boolean supports(AlertRule rule) {
+        return rule != null
+                && rule.getRuleCode() != null
+                && rule.getRuleCode().startsWith("GEO-");
+    }
+
+    @Override
     public Optional<RuleMatch> evaluate(RuleContext context, AlertRule rule) {
         String country = context.getTxn().getCounterpartyCountry();
 
