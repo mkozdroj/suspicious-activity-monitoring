@@ -208,6 +208,128 @@ class StructuringRuleTest {
         assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
     }
 
+    @Test
+    void smurfing_fires_when_small_cash_deposits_reach_threshold_count() {
+        alertRule.setRuleCode("STR-002");
+        alertRule.setThresholdAmount(new BigDecimal("5000.00"));
+        alertRule.setThresholdCount(3);
+
+        Txn current = buildTxn("1000.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        current.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        Txn recent1 = buildTxn("1200.00");
+        recent1.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        recent1.setDirection(com.grad.sam.enums.TxnDirection.CR);
+        Txn recent2 = buildTxn("1500.00");
+        recent2.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        recent2.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent1, recent2))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("3"));
+    }
+
+    @Test
+    void smurfing_returns_empty_when_current_amount_above_threshold() {
+        alertRule.setRuleCode("STR-002");
+        alertRule.setThresholdAmount(new BigDecimal("5000.00"));
+        alertRule.setThresholdCount(3);
+
+        Txn current = buildTxn("6000.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        current.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertFalse(rule.evaluate(ctx, alertRule).isPresent());
+    }
+
+    @Test
+    void crypto_off_ramp_fires_when_small_crypto_credits_reach_threshold_count() {
+        alertRule.setRuleCode("STR-003");
+        alertRule.setThresholdAmount(new BigDecimal("5000.00"));
+        alertRule.setThresholdCount(2);
+
+        Txn current = buildTxn("3000.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CRYPTO);
+        current.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        Txn recent = buildTxn("2000.00");
+        recent.setTxnType(com.grad.sam.enums.TxnType.CRYPTO);
+        recent.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().replace(',', '.').contains("5000.00"));
+    }
+
+    @Test
+    void cheque_kiting_fires_when_cash_withdrawal_follows_cheque_deposit() {
+        alertRule.setRuleCode("STR-004");
+
+        Txn current = buildTxn("500.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+
+        Txn recent = buildTxn("700.00");
+        recent.setTxnType(com.grad.sam.enums.TxnType.CHEQUE);
+        recent.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("30"));
+    }
+
+    @Test
+    void cheque_kiting_returns_empty_without_recent_cheque_deposit() {
+        alertRule.setRuleCode("STR-004");
+
+        Txn current = buildTxn("500.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertFalse(rule.evaluate(ctx, alertRule).isPresent());
+    }
+
+    @Test
+    void returns_empty_for_unknown_structuring_rule_code() {
+        alertRule.setRuleCode("STR-999");
+
+        assertFalse(rule.evaluate(buildContext("9000.00", List.of()), alertRule).isPresent());
+    }
+
     // helper methods
     private List<Txn> buildTxns(int count, String amountUsd) {
         return java.util.stream.IntStream.range(0, count)

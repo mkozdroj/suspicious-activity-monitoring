@@ -55,32 +55,20 @@ public class VelocityRule implements AmlRule {
     }
 
     private Optional<RuleMatch> evaluateHighValueWireVelocity(RuleContext context, AlertRule rule) {
-        if (rule.getThresholdCount() == null || rule.getThresholdAmount() == null) {
+        if (rule.getThresholdCount() == null) {
             return Optional.empty();
         }
 
-        Txn currentTxn = context.getTxn();
-        if (currentTxn.getTxnType() != com.grad.sam.enums.TxnType.WIRE) {
-            return Optional.empty();
-        }
-
-        BigDecimal thresholdAmount = requireAmount(rule, context.getTxn());
-        long total = context.getRecentTxns().stream()
-                .filter(txn -> txn.getTxnType() == com.grad.sam.enums.TxnType.WIRE)
-                .filter(txn -> txn.getAmountUsd() != null && txn.getAmountUsd().compareTo(rule.getThresholdAmount()) > 0)
-                .count();
-
-        if (thresholdAmount.compareTo(rule.getThresholdAmount()) > 0) {
-            total++;
-        }
+        requireAmount(rule, context.getTxn());
+        long total = context.getRecentTxns().size() + 1L;
 
         if (total <= rule.getThresholdCount()) {
             return Optional.empty();
         }
 
         String reason = String.format(
-                "High-value wire velocity breach: %d wires above USD %.2f in %d-day window on account %s",
-                total, rule.getThresholdAmount(), rule.getLookbackDays(), context.getAccount().getAccountNumber());
+                "High velocity detected: %d transactions in %d-day window on account %s",
+                total, rule.getLookbackDays(), context.getAccount().getAccountNumber());
         return Optional.of(new RuleMatch(rule, reason));
     }
 

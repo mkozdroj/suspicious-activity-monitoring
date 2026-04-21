@@ -1,6 +1,11 @@
 package com.grad.sam.controller.reports;
 
 import com.grad.sam.dto.response.OpenCasesReportResponseDto;
+import com.grad.sam.exception.BusinessConflictException;
+import com.grad.sam.service.reports.opencases.OpenCasesReportEmailService;
+import com.grad.sam.service.reports.opencases.OpenCasesReportResult;
+import com.grad.sam.service.reports.opencases.OpenCasesReportService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -11,26 +16,34 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/reports")
 @Validated
+@RequiredArgsConstructor
 public class OpenCasesReportController {
+
+    private final OpenCasesReportService openCasesReportService;
+    private final OpenCasesReportEmailService openCasesReportEmailService;
+    private final ReportResponseMapper reportResponseMapper;
 
     @PostMapping("/open-cases")
     public ResponseEntity<OpenCasesReportResponseDto> generateOpenCasesReport() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(notImplementedResponse());
+        try {
+            OpenCasesReportResult reportResult = openCasesReportService.generateReport("manual");
+            return ResponseEntity.ok(reportResponseMapper.toResponse(reportResult));
+        } catch (IllegalStateException ex) {
+            throw new BusinessConflictException("Failed to generate open cases report");
+        }
     }
 
     @PostMapping("/open-cases/email")
     public ResponseEntity<OpenCasesReportResponseDto> generateAndEmailOpenCasesReport() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(notImplementedResponse());
-    }
-
-    private OpenCasesReportResponseDto notImplementedResponse() {
-        OpenCasesReportResponseDto response = new OpenCasesReportResponseDto();
-        response.setReportName("open-cases");
-        response.setTrigger("not-implemented");
-        response.setEmailSent(false);
-        response.setEmailedTo(java.util.List.of());
-        return response;
+        try {
+            OpenCasesReportResult reportResult = openCasesReportService.generateReport("manual-email");
+            return ResponseEntity.ok(reportResponseMapper.toResponse(
+                    reportResult,
+                    true,
+                    openCasesReportEmailService.sendReportEmail(reportResult)
+            ));
+        } catch (IllegalStateException ex) {
+            throw new BusinessConflictException("Failed to send open cases report email");
+        }
     }
 }

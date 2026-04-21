@@ -59,18 +59,20 @@ public class PatternRule implements AmlRule {
     private Optional<RuleMatch> evaluateRoundTripping(RuleContext context, AlertRule rule) {
         Txn currentTxn = context.getTxn();
         BigDecimal currentAmount = requireAmount(currentTxn);
+        long thresholdCount = rule.getThresholdCount() != null ? rule.getThresholdCount() : 2;
 
-        boolean matched = context.getRecentTxns().stream()
-                .filter(txn -> txn.getDirection() != currentTxn.getDirection())
-                .anyMatch(txn -> currentAmount.compareTo(txn.getAmountUsd()) == 0);
+        long occurrences = context.getRecentTxns().stream()
+                .map(Txn::getAmountUsd)
+                .filter(amount -> amount != null && amount.compareTo(currentAmount) == 0)
+                .count() + 1;
 
-        if (!matched) {
+        if (occurrences < thresholdCount) {
             return Optional.empty();
         }
 
         String reason = String.format(
-                "Round-tripping indicator: opposite-direction transaction of USD %.2f found in %d-day window",
-                currentAmount, rule.getLookbackDays());
+                "Repeated amount pattern detected: USD %.2f appeared %d times in %d-day window",
+                currentAmount, occurrences, rule.getLookbackDays());
         return Optional.of(new RuleMatch(rule, reason));
     }
 

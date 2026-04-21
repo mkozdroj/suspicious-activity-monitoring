@@ -60,22 +60,17 @@ public class StructuringRule implements AmlRule {
         }
 
         Txn currentTxn = context.getTxn();
-        if (currentTxn.getTxnType() != com.grad.sam.enums.TxnType.CASH) {
-            return Optional.empty();
-        }
-
         BigDecimal currentAmount = requireAmount(currentTxn);
         BigDecimal threshold = rule.getThresholdAmount();
         BigDecimal lowerBand = threshold.multiply(LOWER_BAND_FACTOR);
 
         BigDecimal windowTotal = context.getRecentTxns().stream()
-                .filter(txn -> txn.getTxnType() == com.grad.sam.enums.TxnType.CASH)
                 .map(Txn::getAmountUsd)
+                .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .add(currentAmount);
 
-        boolean isStructuring = currentAmount.compareTo(threshold) < 0
-                && windowTotal.compareTo(lowerBand) >= 0
+        boolean isStructuring = windowTotal.compareTo(lowerBand) >= 0
                 && windowTotal.compareTo(threshold) < 0;
 
         if (!isStructuring) {

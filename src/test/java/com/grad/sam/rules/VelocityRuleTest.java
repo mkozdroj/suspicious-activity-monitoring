@@ -43,7 +43,6 @@ class VelocityRuleTest {
         account.setAccountNumber("ACC-0002");
     }
 
-    // happy path
     @Test
     void fires_when_total_count_exceeds_threshold() {
         // 10 recent + 1 current = 11 > 10
@@ -185,6 +184,115 @@ class VelocityRuleTest {
                 .build();
 
         assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void rapid_turnover_fires_when_debit_consumes_recent_credits() {
+        alertRule.setRuleCode("VEL-002");
+
+        Txn current = new Txn();
+        current.setTxnId(1);
+        current.setTxnRef("TXN-VEL-002");
+        current.setAmountUsd(new BigDecimal("920.00"));
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+
+        Txn recent1 = new Txn();
+        recent1.setTxnId(2);
+        recent1.setAmountUsd(new BigDecimal("500.00"));
+        recent1.setDirection(com.grad.sam.enums.TxnDirection.CR);
+        Txn recent2 = new Txn();
+        recent2.setTxnId(3);
+        recent2.setAmountUsd(new BigDecimal("500.00"));
+        recent2.setDirection(com.grad.sam.enums.TxnDirection.CR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent1, recent2))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("90%"));
+    }
+
+    @Test
+    void rapid_turnover_returns_empty_when_no_recent_credits() {
+        alertRule.setRuleCode("VEL-002");
+
+        Txn current = new Txn();
+        current.setTxnId(1);
+        current.setTxnRef("TXN-VEL-002");
+        current.setAmountUsd(new BigDecimal("920.00"));
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertFalse(rule.evaluate(ctx, alertRule).isPresent());
+    }
+
+    @Test
+    void foreign_exchange_activity_fires_when_distinct_currencies_reach_threshold() {
+        alertRule.setRuleCode("VEL-003");
+        alertRule.setThresholdCount(3);
+
+        Txn current = new Txn();
+        current.setTxnId(1);
+        current.setTxnRef("TXN-VEL-003");
+        current.setAmountUsd(new BigDecimal("100.00"));
+        current.setCurrency("USD");
+
+        Txn recent1 = new Txn();
+        recent1.setTxnId(2);
+        recent1.setCurrency("EUR");
+        Txn recent2 = new Txn();
+        recent2.setTxnId(3);
+        recent2.setCurrency("GBP");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent1, recent2))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("3"));
+    }
+
+    @Test
+    void returns_empty_for_vel_004() {
+        alertRule.setRuleCode("VEL-004");
+
+        assertFalse(rule.evaluate(buildContext(List.of()), alertRule).isPresent());
+    }
+
+    @Test
+    void throws_when_current_transaction_amount_is_null_for_velocity_rule() {
+        Txn current = new Txn();
+        current.setTxnId(1);
+        current.setTxnRef("TXN-VEL-001");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void returns_empty_for_unknown_velocity_rule_code() {
+        alertRule.setRuleCode("VEL-999");
+
+        assertFalse(rule.evaluate(buildContext(List.of()), alertRule).isPresent());
     }
 
     // helper methods

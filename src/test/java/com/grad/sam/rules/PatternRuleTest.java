@@ -4,6 +4,7 @@ import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.model.Account;
 import com.grad.sam.model.AlertRule;
+import com.grad.sam.model.Customer;
 import com.grad.sam.model.Txn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ class PatternRuleTest {
         account = new Account();
         account.setAccountId(1);
         account.setAccountNumber("ACC-0006");
+        Customer customer = new Customer();
+        customer.setCustomerType(com.grad.sam.enums.CustomerType.INDIVIDUAL);
+        account.setCustomer(customer);
     }
 
     @Test
@@ -89,7 +93,7 @@ class PatternRuleTest {
         assertTrue(result.get().getReason().contains("3"), "Reason should mention how many times the amount appeared");
     }
 
-    // ── no smurfing ──────────────────────────────────────────────────────────
+    // no smurfing
 
     @Test
     void does_not_fire_when_count_is_below_threshold() {
@@ -167,6 +171,134 @@ class PatternRuleTest {
 
         assertTrue(result.isPresent(), "4999 repeated 3 times should fire even with other amounts present");
         assertTrue(result.get().getReason().contains("4999"));
+    }
+
+    @Test
+    void layering_fires_for_wire_with_three_distinct_counterparties() {
+        alertRule.setRuleCode("PAT-002");
+
+        Txn current = buildTxn(1, "1000.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.WIRE);
+        current.setCounterpartyAccount("CP-3");
+
+        Txn recent1 = buildTxn(2, "200.00");
+        recent1.setCounterpartyAccount("CP-1");
+        Txn recent2 = buildTxn(3, "300.00");
+        recent2.setCounterpartyAccount("CP-2");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent1, recent2))
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("3"));
+    }
+
+    @Test
+    void layering_does_not_fire_for_non_wire_transaction() {
+        alertRule.setRuleCode("PAT-002");
+
+        Txn current = buildTxn(1, "1000.00");
+        current.setTxnType(com.grad.sam.enums.TxnType.CASH);
+        current.setCounterpartyAccount("CP-3");
+
+        Txn recent1 = buildTxn(2, "200.00");
+        recent1.setCounterpartyAccount("CP-1");
+        Txn recent2 = buildTxn(3, "300.00");
+        recent2.setCounterpartyAccount("CP-2");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of(recent1, recent2))
+                .build();
+
+        assertFalse(rule.evaluate(ctx, alertRule).isPresent());
+    }
+
+    @Test
+    void dormant_account_fires_when_no_recent_transactions_and_amount_above_threshold() {
+        alertRule.setRuleCode("PAT-003");
+        alertRule.setThresholdAmount(new BigDecimal("5000.00"));
+
+        Optional<RuleMatch> result = rule.evaluate(buildContext("7500.00", List.of()), alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("14"));
+    }
+
+    @Test
+    void dormant_account_returns_empty_when_threshold_missing() {
+        alertRule.setRuleCode("PAT-003");
+        alertRule.setThresholdAmount(null);
+
+        assertFalse(rule.evaluate(buildContext("7500.00", List.of()), alertRule).isPresent());
+    }
+
+    @Test
+    void dormant_account_returns_empty_when_recent_transactions_exist() {
+        alertRule.setRuleCode("PAT-003");
+        alertRule.setThresholdAmount(new BigDecimal("5000.00"));
+
+        assertFalse(rule.evaluate(buildContext("7500.00", List.of(buildTxn(2, "100.00"))), alertRule).isPresent());
+    }
+
+    @Test
+    void returns_empty_for_pat_004() {
+        alertRule.setRuleCode("PAT-004");
+
+        assertFalse(rule.evaluate(buildContext("1000.00", List.of()), alertRule).isPresent());
+    }
+
+    @Test
+    void charity_diversion_fires_for_charity_debit_above_threshold_with_country() {
+        alertRule.setRuleCode("PAT-005");
+        alertRule.setThresholdAmount(new BigDecimal("1000.00"));
+        account.getCustomer().setCustomerType(com.grad.sam.enums.CustomerType.CHARITY);
+
+        Txn current = buildTxn(1, "2500.00");
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+        current.setCounterpartyCountry("IR");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        Optional<RuleMatch> result = rule.evaluate(ctx, alertRule);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().getReason().contains("IR"));
+    }
+
+    @Test
+    void charity_diversion_returns_empty_for_non_charity_customer() {
+        alertRule.setRuleCode("PAT-005");
+        alertRule.setThresholdAmount(new BigDecimal("1000.00"));
+
+        Txn current = buildTxn(1, "2500.00");
+        current.setDirection(com.grad.sam.enums.TxnDirection.DR);
+        current.setCounterpartyCountry("IR");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertFalse(rule.evaluate(ctx, alertRule).isPresent());
+    }
+
+    @Test
+    void returns_empty_for_unknown_pattern_rule_code() {
+        alertRule.setRuleCode("PAT-999");
+
+        assertFalse(rule.evaluate(buildContext("1000.00", List.of()), alertRule).isPresent());
     }
 
     @Test
