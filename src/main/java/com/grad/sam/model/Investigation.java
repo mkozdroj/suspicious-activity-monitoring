@@ -1,6 +1,5 @@
 package com.grad.sam.model;
 
-import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
 import com.grad.sam.enums.Priority;
@@ -32,7 +31,6 @@ public class Investigation {
     @Column(name = "investigation_ref", nullable = false, unique = true, length = 15)
     private String investigationRef;
 
-    // One investigation per alert (UNIQUE FK)
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "alert_id", nullable = false, unique = true)
     private Alert alert;
@@ -57,7 +55,7 @@ public class Investigation {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "outcome", length = 20)
-    private InvestigationOutcome outcome;       // set when investigation is resolved
+    private InvestigationOutcome outcome;
 
     @NotNull
     @Enumerated(EnumType.STRING)

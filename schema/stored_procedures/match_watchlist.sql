@@ -2,7 +2,7 @@ delimiter $$
 drop procedure if exists match_watchlist$$
 
 create procedure match_watchlist(
-    in p_checked_name varchar(100),   -- name to check: customer full_name or counterparty name
+    in p_checked_name varchar(100),
     in p_threshold    decimal(5,2),
     in p_txn_id       bigint
 )
@@ -26,7 +26,7 @@ begin
                when locate(v_normalized_name, upper(trim(w.entity_name))) > 0 then 85.00
                else 0.00
     end as match_score,
-           'customer_name',           -- was 'entity_name' — field being checked is customer name
+           'customer_name',
            p_checked_name,
            'PENDING'
     from watchlist w

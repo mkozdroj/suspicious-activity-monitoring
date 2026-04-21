@@ -14,12 +14,4 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     Optional<Customer> findByCustomerRef(String customerRef);
 
     List<Customer> findByRiskRating(RiskRating riskRating);
-
-    List<Customer> findByKycStatus(String kycStatus);
-
-    List<Customer> findByIsActive(Boolean isActive);
-
-    List<Customer> findByIsPep(Boolean isPep);
-
-    List<Customer> findByNationality(String nationality);
 }

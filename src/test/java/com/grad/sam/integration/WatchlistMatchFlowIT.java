@@ -16,11 +16,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// Integration test: Watchlist → Transaction → WatchlistMatch
-// Tests the full watchlist screening flow:
-// a transaction is matched against a sanctioned entity and the
-// match is stored with a score and status.
-
 @DataJpaTest
 @ActiveProfiles("test")
 class WatchlistMatchFlowIT {

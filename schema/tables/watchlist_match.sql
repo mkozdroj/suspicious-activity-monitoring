@@ -4,7 +4,7 @@ CREATE TABLE watchlist_match (
     watchlist_id        INT             NOT NULL,
     match_type          VARCHAR(20)     NOT NULL CHECK (match_type IN ('NAME', 'ACCOUNT', 'COUNTRY', 'FUZZY_NAME')),
     match_score         DECIMAL(5,2)    NOT NULL CHECK (match_score BETWEEN 0.00 AND 100.00),
-    matched_field       VARCHAR(50)     NOT NULL,          -- field that triggered match
+    matched_field       VARCHAR(50)     NOT NULL,
     matched_value       VARCHAR(120)    NOT NULL,
     status              VARCHAR(15)     NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'FALSE_POSITIVE', 'CONFIRMED', 'ESCALATED')),
     reviewed_by         VARCHAR(60),
