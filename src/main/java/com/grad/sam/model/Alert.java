@@ -33,12 +33,10 @@ public class Alert {
     @JoinColumn(name = "rule_id", nullable = false)
     private AlertRule alertRule;
 
-    // Alert is raised at account level (not just transaction level)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 
-    // Specific transaction that triggered the alert (optional)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "txn_id")
     private Txn txn;
@@ -48,7 +46,6 @@ public class Alert {
     @Column(name = "triggered_at", nullable = false)
     private LocalDateTime triggeredAt;
 
-    // 0–100 risk score (replaces severity enum — aligns with your schema)
     @NotNull
     @Min(0)
     @Max(100)
@@ -67,7 +64,6 @@ public class Alert {
     @Column(name = "notes", length = 500)
     private String notes;
 
-    // Inverse side — investigation owns the FK to alert
     @OneToOne(mappedBy = "alert", fetch = FetchType.LAZY)
     private Investigation investigation;
 }

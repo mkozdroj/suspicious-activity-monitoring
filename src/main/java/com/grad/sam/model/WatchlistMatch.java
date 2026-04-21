@@ -23,7 +23,6 @@ public class WatchlistMatch {
     @Column(name = "match_id")
     private Integer matchId;
 
-    // Match is raised at transaction level (not customer level)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "txn_id", nullable = false)
     private Txn txn;
@@ -32,13 +31,11 @@ public class WatchlistMatch {
     @JoinColumn(name = "watchlist_id", nullable = false)
     private Watchlist watchlist;
 
-    // NAME, ACCOUNT, COUNTRY, FUZZY_NAME
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "match_type", nullable = false, length = 20)
     private MatchType matchType;
 
-    // 0.00 – 100.00 confidence score
     @NotNull
     @DecimalMin("0.00")
     @DecimalMax("100.00")

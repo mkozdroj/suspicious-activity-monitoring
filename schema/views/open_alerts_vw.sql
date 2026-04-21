@@ -5,8 +5,6 @@ SELECT
     a.alert_ref,
     a.status AS alert_status,
 
-
-    -- Transaction details
     t.txn_id,
     t.txn_ref,
     t.amount,
@@ -17,7 +15,6 @@ SELECT
     t.txn_type,
     t.direction,
 
-    -- Customer details
     c.customer_id,
     c.customer_ref,
     c.full_name,

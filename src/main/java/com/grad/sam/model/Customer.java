@@ -42,7 +42,7 @@ public class Customer {
     @NotBlank
     @Pattern(regexp = "^[A-Z]{2}$", message = "Must be ISO 3166-1 alpha-2 code")
     @Column(name = "nationality", nullable = false, length = 2)
-    private String nationality;                     // ISO 3166-1 alpha-2
+    private String nationality;
 
     @NotBlank
     @Pattern(regexp = "^[A-Z]{2}$", message = "Must be ISO 3166-1 alpha-2 code")
@@ -70,7 +70,7 @@ public class Customer {
 
     @NotNull
     @Column(name = "is_pep", nullable = false)
-    private Boolean isPep = false;                 // Politically Exposed Person
+    private Boolean isPep = false;
 
     @NotNull
     @Column(name = "is_active", nullable = false)

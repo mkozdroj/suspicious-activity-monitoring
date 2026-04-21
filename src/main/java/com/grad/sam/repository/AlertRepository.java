@@ -15,9 +15,5 @@ public interface AlertRepository extends JpaRepository<Alert, Integer> {
 
     List<Alert> findByStatus(AlertStatus status);
 
-    List<Alert> findByAccount_AccountId(Long accountId);
-
-    List<Alert> findByAssignedTo(String assignedTo);
-
     List<Alert> findByAlertScoreGreaterThanEqual(Short minScore);
 }

@@ -67,12 +67,10 @@ public class Account {
     @Schema(hidden = true)
     private Customer customer;
 
-    // One account can have many transactions — FK is on transaction side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Schema(hidden = true)
     private List<Txn> txns;
 
-    // One account can have many alerts — FK is on alert side
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Schema(hidden = true)
     private List<Alert> alerts;

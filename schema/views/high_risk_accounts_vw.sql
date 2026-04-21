@@ -5,10 +5,8 @@ SELECT DISTINCT
     c.full_name,
     c.risk_rating,
 
-    -- Account (from transactions)
     t.account_id,
 
-    -- Alert info
     a.alert_id,
     a.status AS alert_status,
     a.triggered_at AS alert_date

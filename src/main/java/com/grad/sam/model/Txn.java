@@ -73,7 +73,7 @@ public class Txn {
     @Positive
     @Digits(integer = 16, fraction = 2)
     @Column(name = "amount_usd", nullable = false, precision = 18, scale = 2)
-    private BigDecimal amountUsd;            // normalised to USD for rule evaluation
+    private BigDecimal amountUsd;
 
     @NotNull
     @Column(name = "txn_date", nullable = false)
@@ -97,12 +97,10 @@ public class Txn {
     @Schema(hidden = true)
     private Account account;
 
-    // One transaction can trigger many alerts
     @OneToMany(mappedBy = "txn", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Schema(hidden = true)
     private List<Alert> alerts;
 
-    // One transaction can match many watchlist entries
     @OneToMany(mappedBy = "txn", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Schema(hidden = true)
     private List<WatchlistMatch> watchlistMatches;
