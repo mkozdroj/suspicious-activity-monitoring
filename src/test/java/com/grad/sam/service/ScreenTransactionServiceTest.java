@@ -1,6 +1,7 @@
 package com.grad.sam.service;
 
 
+import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.*;
@@ -159,6 +160,45 @@ class ScreenTransactionServiceTest {
 
         assertThrows(NullPointerException.class, () -> service.screenTransaction(42));
         verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_transaction_status_is_not_screenable() {
+        txn.setStatus(TxnStatus.SCREENED);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_amount_usd_is_null() {
+        txn.setAmountUsd(null);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_amount_usd_is_zero() {
+        txn.setAmountUsd(BigDecimal.ZERO);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void returns_only_resolved_alerts_when_all_returned_ids_are_missing() {
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+        when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(77L, 88L));
+        when(alertRepository.findById(77)).thenReturn(Optional.empty());
+        when(alertRepository.findById(88)).thenReturn(Optional.empty());
+
+        List<Alert> result = service.screenTransaction(42);
+
+        assertTrue(result.isEmpty());
     }
 
     @Test

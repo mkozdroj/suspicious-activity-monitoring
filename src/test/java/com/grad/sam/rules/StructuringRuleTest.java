@@ -140,6 +140,74 @@ class StructuringRuleTest {
         assertEquals("STRUCTURING", rule.getSupportedCategory());
     }
 
+    @Test
+    void supports_returns_true_for_structuring_rule_code() {
+        assertTrue(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_null_rule() {
+        assertFalse(rule.supports(null));
+    }
+
+    @Test
+    void supports_returns_false_when_rule_code_is_null() {
+        alertRule.setRuleCode(null);
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_non_structuring_rule_code() {
+        alertRule.setRuleCode("PAT-001");
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void throws_when_context_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(null, alertRule));
+    }
+
+    @Test
+    void throws_when_rule_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(buildContext("9000.00", List.of()), null));
+    }
+
+    @Test
+    void throws_when_context_transaction_is_null() {
+        RuleContext ctx = RuleContext.builder()
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_recent_transactions_are_null() {
+        RuleContext ctx = RuleContext.builder()
+                .txn(buildTxn("5000.00"))
+                .account(account)
+                .recentTxns(null)
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_current_amount_usd_is_null() {
+        Txn current = new Txn();
+        current.setTxnId(1);
+        current.setTxnRef("TXN-STR-NULL");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(current)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
     // helper methods
     private List<Txn> buildTxns(int count, String amountUsd) {
         return java.util.stream.IntStream.range(0, count)
@@ -150,6 +218,13 @@ class StructuringRuleTest {
                     return txn;
                 })
                 .toList();
+    }
+
+    private Txn buildTxn(String amountUsd) {
+        Txn txn = new Txn();
+        txn.setTxnId(999);
+        txn.setAmountUsd(new BigDecimal(amountUsd));
+        return txn;
     }
 
     private RuleContext buildContext(String currentAmountUsd, List<Txn> recentTxns) {

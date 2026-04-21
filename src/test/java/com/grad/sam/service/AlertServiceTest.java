@@ -4,6 +4,7 @@ import com.grad.sam.enums.AlertSeverity;
 import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.RuleCategory;
 import com.grad.sam.exception.DataNotFoundException;
+import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.AlertRuleRepository;
@@ -89,6 +90,162 @@ class AlertServiceTest {
     }
 
     @Test
+    void raiseAlert_throws_when_transaction_missing() {
+        when(txnRepository.findById(42)).thenReturn(Optional.empty());
+
+        assertThrows(DataNotFoundException.class,
+                () -> service.raiseAlert(42, "WATCHLIST", "Exact watchlist match"));
+
+        verify(txnRepository).findById(42);
+        verifyNoInteractions(alertRepository, alertRuleRepository);
+    }
+
+    @Test
+    void raiseAlert_throws_when_transaction_has_no_account() {
+        Txn txn = new Txn();
+        txn.setTxnId(42);
+        txn.setAccount(null);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.raiseAlert(42, "WATCHLIST", "Exact watchlist match"));
+
+        verify(txnRepository).findById(42);
+        verifyNoInteractions(alertRepository, alertRuleRepository);
+    }
+
+    @Test
+    void raiseAlert_throws_when_alert_type_is_unsupported() {
+        Account account = new Account();
+        Txn txn = new Txn();
+        txn.setTxnId(42);
+        txn.setAccount(account);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class,
+                () -> service.raiseAlert(42, "NOT_A_REAL_TYPE", "Exact watchlist match"));
+
+        verify(txnRepository).findById(42);
+        verifyNoInteractions(alertRepository, alertRuleRepository);
+    }
+
+    @Test
+    void raiseAlert_accepts_lowercase_alert_type() {
+        Integer txnId = 42;
+        Account account = new Account();
+        Txn txn = new Txn();
+        txn.setTxnId(txnId);
+        txn.setAccount(account);
+
+        AlertRule rule = new AlertRule();
+        rule.setRuleCategory(RuleCategory.WATCHLIST);
+        rule.setSeverity(AlertSeverity.HIGH);
+
+        when(txnRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(alertRuleRepository.findByRuleCategoryAndIsActiveTrue(RuleCategory.WATCHLIST))
+                .thenReturn(List.of(rule));
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Alert result = service.raiseAlert(txnId, "watchlist", "Exact watchlist match");
+
+        assertNotNull(result);
+        assertEquals(rule, result.getAlertRule());
+        verify(txnRepository).findById(txnId);
+        verify(alertRuleRepository).findByRuleCategoryAndIsActiveTrue(RuleCategory.WATCHLIST);
+        verify(alertRepository).save(any(Alert.class));
+    }
+
+    @Test
+    void raiseAlert_throws_when_no_active_rule_exists_for_category() {
+        Integer txnId = 42;
+        Account account = new Account();
+        Txn txn = new Txn();
+        txn.setTxnId(txnId);
+        txn.setAccount(account);
+
+        when(txnRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(alertRuleRepository.findByRuleCategoryAndIsActiveTrue(RuleCategory.WATCHLIST))
+                .thenReturn(List.of());
+
+        assertThrows(IllegalStateException.class,
+                () -> service.raiseAlert(txnId, "WATCHLIST", "Exact watchlist match"));
+
+        verify(txnRepository).findById(txnId);
+        verify(alertRuleRepository).findByRuleCategoryAndIsActiveTrue(RuleCategory.WATCHLIST);
+        verifyNoInteractions(alertRepository);
+    }
+
+    @Test
+    void createAlert_truncates_notes_longer_than_500_characters() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        Account account = new Account();
+        AlertRule rule = buildRule(AlertSeverity.HIGH);
+        String longDescription = "x".repeat(501);
+
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Alert result = service.createAlert(txn, account, rule, longDescription);
+
+        assertNotNull(result.getNotes());
+        assertEquals(500, result.getNotes().length());
+        assertTrue(result.getNotes().endsWith("..."));
+    }
+
+    @Test
+    void createAlert_keeps_notes_unchanged_when_length_is_500() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        Account account = new Account();
+        AlertRule rule = buildRule(AlertSeverity.HIGH);
+        String description = "x".repeat(500);
+
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Alert result = service.createAlert(txn, account, rule, description);
+
+        assertEquals(description, result.getNotes());
+    }
+
+    @Test
+    void createAlert_keeps_null_notes_as_null() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        Account account = new Account();
+        AlertRule rule = buildRule(AlertSeverity.HIGH);
+
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Alert result = service.createAlert(txn, account, rule, null);
+
+        assertNull(result.getNotes());
+    }
+
+    @Test
+    void createAlert_resolves_low_severity_to_25() {
+        Alert result = createAlertWithSeverity(AlertSeverity.LOW);
+        assertEquals((short) 25, result.getAlertScore());
+    }
+
+    @Test
+    void createAlert_resolves_medium_severity_to_50() {
+        Alert result = createAlertWithSeverity(AlertSeverity.MEDIUM);
+        assertEquals((short) 50, result.getAlertScore());
+    }
+
+    @Test
+    void createAlert_resolves_critical_severity_to_100() {
+        Alert result = createAlertWithSeverity(AlertSeverity.CRITICAL);
+        assertEquals((short) 100, result.getAlertScore());
+    }
+
+    @Test
+    void createAlert_defaults_null_severity_to_50() {
+        Alert result = createAlertWithSeverity(null);
+        assertEquals((short) 50, result.getAlertScore());
+    }
+
+    @Test
     void updateStatus_updates_alert_and_saves() {
         when(alertRepository.findById(10)).thenReturn(Optional.of(existingAlert));
         when(alertRepository.save(existingAlert)).thenReturn(existingAlert);
@@ -144,5 +301,23 @@ class AlertServiceTest {
         service.deleteAlert(10);
 
         verify(alertRepository).deleteById(10);
+    }
+
+    private Alert createAlertWithSeverity(AlertSeverity severity) {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        Account account = new Account();
+        AlertRule rule = buildRule(severity);
+
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        return service.createAlert(txn, account, rule, "desc");
+    }
+
+    private AlertRule buildRule(AlertSeverity severity) {
+        AlertRule rule = new AlertRule();
+        rule.setRuleCategory(RuleCategory.WATCHLIST);
+        rule.setSeverity(severity);
+        return rule;
     }
 }

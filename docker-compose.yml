@@ -21,7 +21,7 @@ services:
       retries: 5
 
   app:
-    build: .
+    image: kpatrycja/suspicious-activity-monitor:latest
     container_name: sam-app
     ports:
       - "8081:8080"

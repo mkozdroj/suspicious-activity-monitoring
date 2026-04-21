@@ -4,6 +4,7 @@ import com.grad.sam.enums.AlertStatus;
 import com.grad.sam.enums.InvestigationOutcome;
 import com.grad.sam.enums.InvestigationState;
 import com.grad.sam.enums.Priority;
+import com.grad.sam.exception.BusinessConflictException;
 import com.grad.sam.exception.DataNotFoundException;
 import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.Alert;
@@ -56,13 +57,13 @@ public class InvestigationService {
                         "Alert not found for id: " + alertId));
 
         if (investigationRepository.findByAlert_AlertId(alertId).isPresent()) {
-            throw new DataNotFoundException(
+            throw new BusinessConflictException(
                     "Investigation already exists for alert id: " + alertId);
         }
 
         Customer customer = alert.getAccount().getCustomer();
         if (customer == null) {
-            throw new DataNotFoundException(
+            throw new IllegalStateException(
                     "No customer found for the account linked to alert id: " + alertId
                             + ". Cannot open investigation without a valid customer.");
         }
@@ -103,7 +104,7 @@ public class InvestigationService {
         InvestigationState currentState = investigation.getState();
 
         if (!isValidTransition(currentState, newState)) {
-            throw new DataNotFoundException(
+            throw new BusinessConflictException(
                     "Invalid state transition for investigation " + investigation.getInvestigationRef()
                             + ": " + currentState + " → " + newState);
         }
