@@ -8,7 +8,6 @@ on:
 
 env:
   JAVA_VERSION: '21'
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sam
   COVERAGE_THRESHOLD: 60
 
 jobs:
@@ -92,8 +91,8 @@ jobs:
             echo "::error::JaCoCo report not found at $REPORT"
             exit 1
           fi
-          MISSED=$(awk -F',' 'NR>1 {sum += $4} END {print sum}' "$REPORT")
-          COVERED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
+          MISSED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
+          COVERED=$(awk -F',' 'NR>1 {sum += $6} END {print sum}' "$REPORT")
           TOTAL=$((MISSED + COVERED))
           if [ "$TOTAL" -eq 0 ]; then
             echo "::warning::No instructions found in JaCoCo report"
@@ -160,100 +159,12 @@ jobs:
           retention-days: 14
 
   # ─────────────────────────────────────────────
-  # STAGE 4 — DOCKER BUILD & PUSH
-  # ─────────────────────────────────────────────
-  docker:
-    name: Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: [ test, code-quality ]
-    # Only push images from main
-    if: github.ref == 'refs/heads/main'
-
-    permissions:
-      contents: read
-      packages: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-      image_digest: ${{ steps.build-push.outputs.digest }}
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Download JAR artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sam-jar
-          path: target/
-
-      - name: Set up QEMU (multi-arch)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Docker metadata (tags & labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            # Branch-based tag: main → latest
-            type=ref,event=branch
-            # Semantic version tag on annotated git tags
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            # Short SHA always
-            type=sha,prefix=sha-,format=short
-
-      - name: Build & push Docker image
-        id: build-push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Scan image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          exit-code: '0'
-
-      - name: Upload Trivy SARIF results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
-
-      - name: Print image digest
-        run: |
-          echo "Image pushed: ${{ env.IMAGE_NAME }}"
-          echo "Digest:       ${{ steps.build-push.outputs.digest }}"
-
-  # ─────────────────────────────────────────────
   # POST-BUILD — Notifications
   # ─────────────────────────────────────────────
   notify:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [ build, test, code-quality, docker ]
+    needs: [ build, test, code-quality ]
     if: failure()
 
     steps:
