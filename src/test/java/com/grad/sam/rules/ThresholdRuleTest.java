@@ -121,6 +121,83 @@ class ThresholdRuleTest {
         assertEquals(RuleCategory.STRUCTURING.name(), rule.getSupportedCategory());
     }
 
+    @Test
+    void supports_returns_true_for_threshold_rule_code() {
+        assertTrue(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_null_rule() {
+        assertFalse(rule.supports(null));
+    }
+
+    @Test
+    void supports_returns_false_when_rule_code_is_null() {
+        alertRule.setRuleCode(null);
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void supports_returns_false_for_non_threshold_rule_code() {
+        alertRule.setRuleCode("STR-001");
+        assertFalse(rule.supports(alertRule));
+    }
+
+    @Test
+    void throws_when_context_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(null, alertRule));
+    }
+
+    @Test
+    void throws_when_rule_is_null() {
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(buildContext("1000.00"), null));
+    }
+
+    @Test
+    void throws_when_transaction_is_null() {
+        RuleContext ctx = RuleContext.builder()
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_account_is_null() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        txn.setTxnRef("TXN-001");
+        txn.setAmount(new BigDecimal("1000.00"));
+        txn.setAmountUsd(new BigDecimal("1000.00"));
+        txn.setCurrency("USD");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(txn)
+                .account(null)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
+    @Test
+    void throws_when_amount_usd_is_null() {
+        Txn txn = new Txn();
+        txn.setTxnId(1);
+        txn.setTxnRef("TXN-001");
+        txn.setAmount(new BigDecimal("1000.00"));
+        txn.setCurrency("USD");
+
+        RuleContext ctx = RuleContext.builder()
+                .txn(txn)
+                .account(account)
+                .recentTxns(List.of())
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> rule.evaluate(ctx, alertRule));
+    }
+
     private RuleContext buildContext(String amountUsd) {
         return buildContextWithCurrency(amountUsd, amountUsd, "USD");
     }

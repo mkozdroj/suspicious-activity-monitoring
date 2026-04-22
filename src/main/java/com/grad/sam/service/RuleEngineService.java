@@ -1,160 +1,209 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.AlertRuleDao;
-import com.grad.sam.dao.TxnDao;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Account;
+import com.grad.sam.model.Alert;
 import com.grad.sam.model.AlertRule;
 import com.grad.sam.model.Txn;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.sql.DataSource;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
 public class RuleEngineService {
+    private final AlertRuleRepository alertRuleRepository;
+    private final TxnRepository txnRepository;
+    private final TxnService txnService;
+    private final List<AmlRule> rules;
+    private final Map<String, AmlRule> rulesByCode;
+    private final WatchlistScreeningService watchlistScreeningService;
+    private final AlertService alertService;
 
-    private final AlertRuleDao alertRuleDao;
-    private final TxnDao txnDao;
-    private final DataSource dataSource;
-    private final Map<String, AmlRule> rulesByCategory;
-
-    public RuleEngineService(AlertRuleDao alertRuleDao,
-                             TxnDao txnDao,
-                             DataSource dataSource,
-                             List<AmlRule> rules) {
-        this.alertRuleDao = alertRuleDao;
-        this.txnDao = txnDao;
-        this.dataSource = dataSource;
-        this.rulesByCategory = rules.stream()
-                .collect(Collectors.toMap(
-                        AmlRule::getSupportedCategory,
-                        r -> r,
-                        (existing, replacement) -> existing));
+    @Autowired
+    public RuleEngineService(AlertRuleRepository alertRuleRepository,
+                             TxnRepository txnRepository,
+                             TxnService txnService,
+                             List<AmlRule> rules,
+                             Map<String, AmlRule> rulesByCode,
+                             WatchlistScreeningService watchlistScreeningService,
+                             AlertService alertService) {
+        this.alertRuleRepository = alertRuleRepository;
+        this.txnRepository = txnRepository;
+        this.txnService = txnService;
+        this.rules = rules;
+        this.rulesByCode = rulesByCode;
+        this.watchlistScreeningService = watchlistScreeningService;
+        this.alertService = alertService;
     }
 
-    /**
-     * Main entry point — screens a single transaction against all active rules.
-     * Returns the list of alert IDs raised (empty if no rules fired).
-     */
-    @Transactional
+    public RuleEngineService(AlertRuleRepository alertRuleRepository,
+                             TxnRepository txnRepository,
+                             TxnService txnService,
+                             List<AmlRule> rules,
+                             WatchlistScreeningService watchlistScreeningService,
+                             AlertService alertService) {
+        this(
+                alertRuleRepository,
+                txnRepository,
+                txnService,
+                rules,
+                buildRulesByCode(rules),
+                watchlistScreeningService,
+                alertService
+        );
+    }
+
     public List<Long> screenTransaction(Txn txn, Account account) {
+        validateRequiredInput(txn, account);
 
-        // 1. load all active rules from DB via DAO
-        List<AlertRule> activeRules = alertRuleDao.findActiveRules();
+        List<AlertRule> activeRules = alertRuleRepository.findByIsActiveTrue();
+        if (activeRules == null) {
+            throw new IllegalStateException("Active rules query returned null.");
+        }
 
-        // 2. find the longest lookback window needed across all rules
         int maxLookback = activeRules.stream()
                 .mapToInt(r -> r.getLookbackDays() != null ? r.getLookbackDays() : 30)
                 .max()
                 .orElse(30);
 
-        // 3. fetch recent transactions for the account within that window
-        //    txn.getTxnId() is Integer — passed directly to TxnDao
-        List<Txn> recentTxns = txnDao.findRecentByAccount(
+        List<Txn> recentTxns = txnRepository.findRecentByAccount(
                 account.getAccountId(), txn.getTxnId(), maxLookback);
+        if (recentTxns == null) {
+            throw new IllegalStateException("Recent transactions query returned null.");
+        }
 
-        // 4. build the shared context object for all rule evaluations
         RuleContext context = RuleContext.builder()
                 .txn(txn)
                 .account(account)
                 .recentTxns(recentTxns)
                 .build();
 
-        // 5. evaluate each rule, raise an alert for each match
         List<Long> alertIds = activeRules.stream()
                 .map(rule -> evaluateRule(context, rule))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .map(match -> callRaiseAlert(txn.getTxnId(), match))
-                .filter(id -> id > 0)
-                .collect(Collectors.toList());
+                .flatMap(Optional::stream)
+                .map(match -> alertService.createAlert(txn, account, match.getRule(), match.getReason()))
+                .map(Alert::getAlertId)
+                .map(Long::valueOf)
+                .toList();
 
-        // 6. mark the transaction as screened
-        callScreenTransaction(txn.getTxnId());
+        txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.SCREENED);
 
-        log.info("Screened txn {} — {} alert(s) raised", txn.getTxnRef(), alertIds.size());
+        try {
+            String customerName = account.getCustomer() != null ? account.getCustomer().getFullName() : null;
+            if (customerName == null || customerName.isBlank()) {
+                throw new IllegalStateException(
+                        "Cannot run watchlist screening: customer full name is missing for account " + account.getAccountId());
+            }
+
+            watchlistScreeningService.screenCustomer(
+                    customerName,
+                    WatchlistScreeningService.FUZZY_MATCH_SCORE,
+                    txn
+            );
+        } catch (Exception e) {
+            log.error("Watchlist screening failed for txn {}: {}", txn.getTxnId(), e.getMessage(), e);
+        }
+
         return alertIds;
     }
 
-    // ----------------------------------------------------------------
-    // private helpers
-    // ----------------------------------------------------------------
-
     private Optional<RuleMatch> evaluateRule(RuleContext context, AlertRule rule) {
-        if (rule.getRuleCategory() == null) {
-            log.warn("Rule category is null for rule_code: {}", rule.getRuleCode());
+        if (context == null) {
+            throw new IllegalArgumentException("Rule context must not be null.");
+        }
+        if (rule == null) {
+            throw new IllegalArgumentException("Alert rule must not be null.");
+        }
+        if (rule.getRuleCode() == null || rule.getRuleCode().isBlank()) {
             return Optional.empty();
         }
 
-        AmlRule impl = rulesByCategory.get(rule.getRuleCategory().name());
+        AmlRule impl = rulesByCode.get(rule.getRuleCode());
         if (impl == null) {
-            log.warn("No rule implementation found for category '{}' (rule_code: {})",
-                    rule.getRuleCategory(), rule.getRuleCode());
+            impl = findImplementation(rule).orElse(null);
+        }
+        if (impl == null) {
             return Optional.empty();
         }
 
         try {
-            return impl.evaluate(context, rule);
+            Optional<RuleMatch> result = impl.evaluate(context, rule);
+            if (result == null) {
+                throw new IllegalStateException(
+                        "Rule implementation returned null Optional for rule_code '" + rule.getRuleCode() + "'.");
+            }
+            return result;
         } catch (Exception e) {
-            log.error("Rule evaluation failed for rule_code '{}': {}",
-                    rule.getRuleCode(), e.getMessage(), e);
+            log.error("Rule evaluation failed for rule_code '{}': {}", rule.getRuleCode(), e.getMessage(), e);
             return Optional.empty();
         }
     }
 
-    private long callRaiseAlert(Integer txnId, RuleMatch match) {
-        String notes = match.getReason();
-        if (notes != null && notes.length() > 500) {
-            notes = notes.substring(0, 497) + "...";
+    private Optional<AmlRule> findImplementation(AlertRule rule) {
+        return rules.stream()
+                .filter(impl -> impl.supports(rule))
+                .findFirst();
+    }
+
+    private void validateRequiredInput(Txn txn, Account account) {
+        if (txn == null) {
+            throw new IllegalArgumentException("Transaction must not be null.");
         }
-
-        try (Connection conn = dataSource.getConnection();
-             CallableStatement cs = conn.prepareCall("{CALL raise_alert(?, ?, ?, ?)}")) {
-
-            cs.setInt(1, txnId);
-            cs.setInt(2, match.getRule().getRuleId());
-            cs.setString(3, notes);
-            cs.registerOutParameter(4, Types.BIGINT);
-            cs.execute();
-
-            long alertId = cs.getLong(4);
-            if (alertId > 0) {
-                log.debug("raise_alert fired: alert_id={} for txn_id={} rule={}",
-                        alertId, txnId, match.getRule().getRuleCode());
-            } else {
-                log.warn("raise_alert returned -1 for txn_id={} rule={}",
-                        txnId, match.getRule().getRuleCode());
-            }
-            return alertId;
-
-        } catch (Exception e) {
-            log.error("Failed to call raise_alert for txn_id={}: {}", txnId, e.getMessage(), e);
-            return -1L;
+        if (account == null) {
+            throw new IllegalArgumentException("Account must not be null.");
+        }
+        if (txn.getTxnId() == null) {
+            throw new IllegalArgumentException("Transaction id must not be null.");
+        }
+        if (account.getAccountId() == null) {
+            throw new IllegalArgumentException("Account id must not be null.");
         }
     }
 
-    private void callScreenTransaction(Integer txnId) {
-        try (Connection conn = dataSource.getConnection();
-             CallableStatement cs = conn.prepareCall("{CALL screen_transaction(?)}")) {
-
-            cs.setInt(1, txnId);
-            cs.execute();
-            log.debug("screen_transaction completed for txn_id={}", txnId);
-
-        } catch (Exception e) {
-            log.error("Failed to call screen_transaction for txn_id={}: {}", txnId, e.getMessage(), e);
+    private Stream<Map.Entry<String, AmlRule>> ruleMappings(AmlRule rule) {
+        List<String> explicitRuleCodes = rule.getSupportedRuleCodes();
+        if (explicitRuleCodes == null) {
+            return Stream.of(Map.entry(rule.getSupportedCategory(), rule));
         }
+
+        return explicitRuleCodes.stream()
+                .filter(code -> code != null && !code.isBlank())
+                .map(code -> Map.entry(code, rule));
+    }
+
+    private static Map<String, AmlRule> buildRulesByCode(List<AmlRule> rules) {
+        if (rules == null) {
+            return Map.of();
+        }
+
+        return rules.stream()
+                .flatMap(rule -> {
+                    List<String> supportedRuleCodes = rule.getSupportedRuleCodes();
+                    if (supportedRuleCodes == null || supportedRuleCodes.isEmpty()) {
+                        return Stream.empty();
+                    }
+
+                    return supportedRuleCodes.stream()
+                            .filter(code -> code != null && !code.isBlank())
+                            .map(code -> Map.entry(code, rule));
+                })
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (existing, replacement) -> existing
+                ));
     }
 }

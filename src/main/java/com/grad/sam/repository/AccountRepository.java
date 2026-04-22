@@ -13,10 +13,4 @@ public interface AccountRepository extends JpaRepository<Account, Integer> {
     Optional<Account> findByAccountNumber(String accountNumber);
 
     List<Account> findByCustomer_CustomerId(Integer customerId);
-
-    List<Account> findByStatus(String status);
-
-    List<Account> findByAccountType(String accountType);
-
-    List<Account> findByBranchCode(String branchCode);
 }

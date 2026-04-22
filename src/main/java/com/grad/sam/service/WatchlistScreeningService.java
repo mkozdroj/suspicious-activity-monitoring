@@ -1,14 +1,20 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.TxnDao;
+import com.grad.sam.enums.MatchStatus;
+import com.grad.sam.enums.MatchType;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.Txn;
 import com.grad.sam.model.Watchlist;
 import com.grad.sam.model.WatchlistMatch;
 import com.grad.sam.repository.WatchlistMatchRepository;
 import com.grad.sam.repository.WatchlistRepository;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -16,45 +22,55 @@ import java.util.List;
 
 @Slf4j
 @Service
+@Validated
+@RequiredArgsConstructor
 public class WatchlistScreeningService {
+    public static final BigDecimal EXACT_MATCH_SCORE = new BigDecimal("100.00");
+    public static final BigDecimal FUZZY_MATCH_SCORE = new BigDecimal("85.00");
 
     private final WatchlistRepository watchlistRepository;
     private final WatchlistMatchRepository watchlistMatchRepository;
-    private final TxnDao transactionDao;
+    private final TxnService txnService;
+    private final AlertService alertService;
 
-    public WatchlistScreeningService(
-            WatchlistRepository watchlistRepository,
-            WatchlistMatchRepository watchlistMatchRepository,
-            TxnDao transactionDao
-    ) {
-        this.watchlistRepository = watchlistRepository;
-        this.watchlistMatchRepository = watchlistMatchRepository;
-        this.transactionDao = transactionDao;
-    }
 
     @Transactional
-    public List<WatchlistMatch> screenCustomer(String customerName, BigDecimal threshold, Txn txn) throws IllegalStateException {
+    public List<WatchlistMatch> screenCustomer(
+            @NotBlank String customerName,
+            @NotNull BigDecimal threshold,
+            @NotNull Txn txn) throws IllegalStateException {
         log.info("Starting watchlist screening for txn: {}", txn.getTxnId());
 
         List<WatchlistMatch> matches = matchWatchlist(customerName, threshold, txn);
 
-        String finalStatus = "SCREENED";
-        boolean hasExactMatch = matches.stream()
-                .anyMatch(m -> m.getMatchScore().compareTo(new BigDecimal("100.00")) == 0);
-        if (hasExactMatch)
-            finalStatus = "BLOCKED";
-        else if (!matches.isEmpty())
-            finalStatus = "PENDING";
-
-        transactionDao.updateStatus(txn.getTxnId(), finalStatus);
-        if (finalStatus.equals("BLOCKED"))
-            log.warn("Transaction {} BLOCKED — exact watchlist match found", txn.getTxnId());
+        if (matches.isEmpty()) {
+            txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.SCREENED);
+        } else {
+            txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.PENDING);
+            blockIfSanctioned(txn, matches);
+        }
 
         return matches;
     }
 
-    @Transactional
-    public List<WatchlistMatch> matchWatchlist(String customerName, BigDecimal threshold, Txn txn) {
+    public void blockIfSanctioned(@NotNull Txn txn, @NotNull List<WatchlistMatch> matches) {
+        try {
+            boolean sanctioned = matches.stream()
+                    .anyMatch(m -> m.getMatchScore().compareTo(EXACT_MATCH_SCORE) == 0);
+
+            if (sanctioned) {
+                txnService.updateTxnStatus(txn.getTxnId(), TxnStatus.BLOCKED);
+                log.warn("Transaction {} BLOCKED — exact watchlist match found", txn.getTxnId());
+                alertService.raiseAlert(txn.getTxnId(), "WATCHLIST", "Transaction blocked due to exact watchlist match");
+            }
+
+        } catch (Exception e) {
+            log.error("Unexpected error in blockIfSanctioned for txn: {}", txn.getTxnId(), e);
+            throw new IllegalStateException("Failed to evaluate sanction status", e);
+        }
+    }
+
+    private List<WatchlistMatch> matchWatchlist(String customerName, BigDecimal threshold, Txn txn) {
         String normalized = customerName.toUpperCase().trim();
         log.info("Screening customer: {} against watchlist (threshold: {})", normalized, threshold);
 
@@ -66,20 +82,20 @@ public class WatchlistScreeningService {
             BigDecimal score = BigDecimal.ZERO;
 
             if (entryName.equals(normalized)) {
-                score = new BigDecimal("100.00");
+                score = EXACT_MATCH_SCORE;
             } else if (normalized.contains(entryName) || entryName.contains(normalized)) {
-                score = new BigDecimal("85.00");
+                score = FUZZY_MATCH_SCORE;
             }
 
             if (score.compareTo(threshold) >= 0) {
                 WatchlistMatch match = new WatchlistMatch();
                 match.setTxn(txn);
                 match.setWatchlist(entry);
-                match.setMatchType("FUZZY_NAME");
+                match.setMatchType(MatchType.FUZZY_NAME);
                 match.setMatchScore(score);
                 match.setMatchedField("entity_name");
                 match.setMatchedValue(customerName);
-                match.setStatus("PENDING");
+                match.setStatus(MatchStatus.PENDING);
                 results.add(match);
             }
         }

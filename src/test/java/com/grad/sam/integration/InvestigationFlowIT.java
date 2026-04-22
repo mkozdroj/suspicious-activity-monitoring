@@ -47,9 +47,9 @@ class InvestigationFlowIT {
         customer.setFullName("Maria Wiśniewska");
         customer.setNationality("PL");
         customer.setCountryOfResidence("PL");
-        customer.setCustomerType("INDIVIDUAL");
+        customer.setCustomerType(CustomerType.INDIVIDUAL);
         customer.setRiskRating(RiskRating.HIGH);
-        customer.setKycStatus("VERIFIED");
+        customer.setKycStatus(KycStatus.VERIFIED);
         customer.setOnboardedDate(LocalDate.now().minusYears(3));
         customer.setIsPep(true);
         customer.setIsActive(true);
@@ -57,25 +57,25 @@ class InvestigationFlowIT {
 
         account = new Account();
         account.setAccountNumber("ACC-INV-001");
-        account.setAccountType("CURRENT");
+        account.setAccountType(AccountType.CURRENT);
         account.setCurrency("USD");
         account.setBalance(new BigDecimal("100000.00"));
         account.setOpenedDate(LocalDate.now().minusYears(2));
-        account.setStatus("ACTIVE");
+        account.setStatus(AccountStatus.ACTIVE);
         account.setBranchCode("WAW-02");
         account.setCustomer(customer);
         account = accountRepository.save(account);
 
         txn = new Txn();
         txn.setTxnRef("TXN-INV-001");
-        txn.setTxnType("WIRE");
-        txn.setDirection("DR");
+        txn.setTxnType(TxnType.WIRE);
+        txn.setDirection(TxnDirection.DR);
         txn.setAmount(new BigDecimal("75000.00"));
         txn.setCurrency("USD");
         txn.setAmountUsd(new BigDecimal("75000.00"));
         txn.setTxnDate(LocalDate.now());
         txn.setValueDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setCounterpartyCountry("KP");
         txn.setDescription("Investment transfer");
         txn.setAccount(account);
@@ -114,7 +114,7 @@ class InvestigationFlowIT {
         inv.setCustomer(customer);
         inv.setOpenedBy("officer@bank.com");
         inv.setOpenedAt(LocalDateTime.now());
-        inv.setPriority("URGENT");
+        inv.setPriority(Priority.URGENT);
         inv.setState(InvestigationState.OPEN);
         inv = investigationRepository.save(inv);
 
@@ -225,12 +225,12 @@ class InvestigationFlowIT {
         medium.setCustomer(customer);
         medium.setOpenedBy("officer@bank.com");
         medium.setOpenedAt(LocalDateTime.now());
-        medium.setPriority("MEDIUM");
+        medium.setPriority(Priority.MEDIUM);
         medium.setState(InvestigationState.OPEN);
         investigationRepository.save(medium);
 
-        List<Investigation> urgent = investigationRepository.findByPriority("URGENT");
-        List<Investigation> mediumList = investigationRepository.findByPriority("MEDIUM");
+        List<Investigation> urgent = investigationRepository.findByPriority(Priority.URGENT);
+        List<Investigation> mediumList = investigationRepository.findByPriority(Priority.MEDIUM);
 
         assertEquals(1, urgent.size());
         assertEquals("INV-URGENT", urgent.get(0).getInvestigationRef());
@@ -256,7 +256,7 @@ class InvestigationFlowIT {
         inv.setCustomer(customer);
         inv.setOpenedBy("officer@bank.com");
         inv.setOpenedAt(LocalDateTime.now());
-        inv.setPriority("URGENT");
+        inv.setPriority(Priority.URGENT);
         inv.setState(state);
         inv.setOutcome(outcome);
         return inv;

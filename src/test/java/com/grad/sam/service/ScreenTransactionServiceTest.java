@@ -1,7 +1,9 @@
 package com.grad.sam.service;
 
 
+import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.enums.AlertStatus;
+import com.grad.sam.enums.TxnStatus;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.TxnRepository;
@@ -22,12 +24,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link ScreenTransactionService}.
- *
- * <p>Covers: returns triggered alerts, returns empty list on no match,
- * 404 on missing transaction, 404 on missing account, delegates to rule engine.</p>
- */
 @ExtendWith(MockitoExtension.class)
 class ScreenTransactionServiceTest {
 
@@ -62,11 +58,11 @@ class ScreenTransactionServiceTest {
         txn.setAmount(new BigDecimal("15000.00"));
         txn.setCurrency("USD");
         txn.setTxnDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setAccount(account);
     }
 
-    // ── Happy path ────────────────────────────────────────────────────────────
+    // Happy path
 
     @Test
     void returns_triggered_alerts_when_rules_fire() {
@@ -136,15 +132,13 @@ class ScreenTransactionServiceTest {
         assertEquals("ALT-001", result.get(0).getAlertRef());
     }
 
-    // ── Error paths ───────────────────────────────────────────────────────────
-
+    // Error paths
     @Test
-    void returns_empty_list_when_transaction_not_found() {
+    void throws_when_transaction_not_found() {
         when(txnRepository.findById(999)).thenReturn(Optional.empty());
 
-        List<Alert> result = service.screenTransaction(999);
-
-        assertTrue(result.isEmpty());
+        assertThrows(com.grad.sam.exception.DataNotFoundException.class,
+                () -> service.screenTransaction(999));
     }
 
 
@@ -152,12 +146,60 @@ class ScreenTransactionServiceTest {
     void does_not_call_rule_engine_when_transaction_missing() {
         when(txnRepository.findById(999)).thenReturn(Optional.empty());
 
-        service.screenTransaction(999);
+        assertThrows(com.grad.sam.exception.DataNotFoundException.class,
+                () -> service.screenTransaction(999));
 
         verify(ruleEngineService, never()).screenTransaction(any(), any());
     }
 
     // AML domain scenarios
+    @Test
+    void screenTransaction_throws_when_transaction_has_no_account_current_behavior() {
+        txn.setAccount(null);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(NullPointerException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_transaction_status_is_not_screenable() {
+        txn.setStatus(TxnStatus.SCREENED);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_amount_usd_is_null() {
+        txn.setAmountUsd(null);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void throws_when_amount_usd_is_zero() {
+        txn.setAmountUsd(BigDecimal.ZERO);
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+
+        assertThrows(InvalidInputException.class, () -> service.screenTransaction(42));
+        verify(ruleEngineService, never()).screenTransaction(any(), any());
+    }
+
+    @Test
+    void returns_only_resolved_alerts_when_all_returned_ids_are_missing() {
+        when(txnRepository.findById(42)).thenReturn(Optional.of(txn));
+        when(ruleEngineService.screenTransaction(txn, account)).thenReturn(List.of(77L, 88L));
+        when(alertRepository.findById(77)).thenReturn(Optional.empty());
+        when(alertRepository.findById(88)).thenReturn(Optional.empty());
+
+        List<Alert> result = service.screenTransaction(42);
+
+        assertTrue(result.isEmpty());
+    }
 
     @Test
     void high_value_pep_transaction_triggers_alert_from_multiple_rules() {

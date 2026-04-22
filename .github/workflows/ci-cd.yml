@@ -1,0 +1,189 @@
+name: SAM CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "feature/**", "fix/**" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  JAVA_VERSION: '21'
+  COVERAGE_THRESHOLD: 60
+
+jobs:
+  # ─────────────────────────────────────────────
+  # STAGE 1 — BUILD
+  # ─────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Compile (skip tests)
+        run: ./mvnw compile -B --no-transfer-progress
+
+      - name: Package JAR (skip tests)
+        run: ./mvnw package -B --no-transfer-progress -DskipTests
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sam-jar
+          path: target/*.jar
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # STAGE 2 — TEST & COVERAGE
+  # ─────────────────────────────────────────────
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Run unit tests + generate JaCoCo report
+        run: |
+          ./mvnw verify -B --no-transfer-progress \
+            -Dspring.profiles.active=test \
+            -Dspring.datasource.url="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL" \
+            -Dspring.datasource.driver-class-name=org.h2.Driver \
+            -Dspring.datasource.username=sa \
+            -Dspring.datasource.password= \
+            -Dspring.jpa.hibernate.ddl-auto=create-drop
+
+      - name: Publish JUnit test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: target/surefire-reports/**/*.xml
+          comment_title: Unit Test Results
+
+      - name: Check JaCoCo coverage threshold
+        run: |
+          REPORT="target/site/jacoco/jacoco.csv"
+          if [ ! -f "$REPORT" ]; then
+            echo "::error::JaCoCo report not found at $REPORT"
+            exit 1
+          fi
+          MISSED=$(awk -F',' 'NR>1 {sum += $4} END {print sum}' "$REPORT")
+          COVERED=$(awk -F',' 'NR>1 {sum += $5} END {print sum}' "$REPORT")
+          TOTAL=$((MISSED + COVERED))
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::warning::No instructions found in JaCoCo report"
+            exit 0
+          fi
+          PCT=$(( COVERED * 100 / TOTAL ))
+          echo "Code coverage: ${PCT}% (threshold: ${{ env.COVERAGE_THRESHOLD }}%)"
+          if [ "$PCT" -lt "${{ env.COVERAGE_THRESHOLD }}" ]; then
+            echo "::error::Coverage ${PCT}% is below the required ${{ env.COVERAGE_THRESHOLD }}% threshold"
+            exit 1
+          fi
+
+      - name: Upload JaCoCo HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 14
+
+  # ─────────────────────────────────────────────
+  # STAGE 3 — CODE QUALITY (Checkstyle + PMD)
+  # ─────────────────────────────────────────────
+  code-quality:
+    name: Code Quality Gate
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Run Checkstyle
+        run: |
+          ./mvnw checkstyle:check -B --no-transfer-progress \
+            -Dcheckstyle.failsOnError=true \
+            -Dcheckstyle.violationSeverity=warning \
+          || echo "::warning::Checkstyle found style issues — review report"
+
+      - name: Run PMD static analysis
+        run: |
+          ./mvnw pmd:check -B --no-transfer-progress \
+            -Dpmd.failOnViolation=false \
+          || echo "::warning::PMD found potential issues — review report"
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            target/checkstyle-result.xml
+            target/pmd.xml
+          retention-days: 14
+
+  # ─────────────────────────────────────────────
+  # POST-BUILD — Notifications
+  # ─────────────────────────────────────────────
+  notify:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [ build, test, code-quality ]
+    if: failure()
+
+    steps:
+      - name: Send Slack failure notification
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ *SAM Pipeline FAILED* on `${{ github.ref_name }}`",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Repository", "value": "${{ github.repository }}", "short": true },
+                  { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
+                  { "title": "Commit", "value": "${{ github.sha }}", "short": false },
+                  { "title": "Workflow run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -3,9 +3,9 @@ CREATE TABLE alert (
     alert_ref           VARCHAR(15)     NOT NULL UNIQUE,
     rule_id             INT             NOT NULL,
     account_id          INT             NOT NULL,
-    txn_id              INT,                               -- triggering transaction (if applicable)
+    txn_id              INT,
     triggered_at        TIMESTAMP       NOT NULL,
-    alert_score         SMALLINT        NOT NULL CHECK (alert_score BETWEEN 0 AND 100),          -- 0–100 risk score
+    alert_score         SMALLINT        NOT NULL CHECK (alert_score BETWEEN 0 AND 100),
     status              VARCHAR(15)     NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'UNDER_REVIEW', 'ESCALATED', 'CLOSED', 'FALSE_POSITIVE', 'SAR_FILED')),
     assigned_to         VARCHAR(60),
     notes               VARCHAR(500),

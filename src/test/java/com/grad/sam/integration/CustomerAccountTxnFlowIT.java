@@ -1,9 +1,6 @@
 package com.grad.sam.integration;
 
-import com.grad.sam.enums.AlertSeverity;
-import com.grad.sam.enums.AlertStatus;
-import com.grad.sam.enums.RiskRating;
-import com.grad.sam.enums.RuleCategory;
+import com.grad.sam.enums.*;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,9 +45,9 @@ class CustomerAccountTxnFlowIT {
         customer.setDateOfBirth(LocalDate.of(1985, 3, 15));
         customer.setNationality("PL");
         customer.setCountryOfResidence("PL");
-        customer.setCustomerType("INDIVIDUAL");
+        customer.setCustomerType(CustomerType.INDIVIDUAL);
         customer.setRiskRating(RiskRating.MEDIUM);
-        customer.setKycStatus("VERIFIED");
+        customer.setKycStatus(KycStatus.VERIFIED);
         customer.setOnboardedDate(LocalDate.now().minusYears(2));
         customer.setIsPep(false);
         customer.setIsActive(true);
@@ -59,11 +56,11 @@ class CustomerAccountTxnFlowIT {
         // 2. Create an account linked to the customer
         account = new Account();
         account.setAccountNumber("ACC-PL-00001");
-        account.setAccountType("CURRENT");
+        account.setAccountType(AccountType.CURRENT);
         account.setCurrency("PLN");
         account.setBalance(new BigDecimal("5000.00"));
         account.setOpenedDate(LocalDate.now().minusYears(1));
-        account.setStatus("ACTIVE");
+        account.setStatus(AccountStatus.ACTIVE);
         account.setBranchCode("WAW-01");
         account.setCustomer(customer);
         account = accountRepository.save(account);
@@ -89,7 +86,7 @@ class CustomerAccountTxnFlowIT {
         assertTrue(found.isPresent());
         assertEquals("Jan Kowalski", found.get().getFullName());
         assertEquals(RiskRating.MEDIUM, found.get().getRiskRating());
-        assertEquals("VERIFIED", found.get().getKycStatus());
+        assertEquals(KycStatus.VERIFIED, found.get().getKycStatus());
     }
 
     @Test
@@ -100,9 +97,9 @@ class CustomerAccountTxnFlowIT {
         highRisk.setFullName("Anna Nowak");
         highRisk.setNationality("UA");
         highRisk.setCountryOfResidence("PL");
-        highRisk.setCustomerType("INDIVIDUAL");
+        highRisk.setCustomerType(CustomerType.INDIVIDUAL);
         highRisk.setRiskRating(RiskRating.HIGH);
-        highRisk.setKycStatus("PENDING");
+        highRisk.setKycStatus(KycStatus.PENDING);
         highRisk.setOnboardedDate(LocalDate.now());
         highRisk.setIsPep(true);
         highRisk.setIsActive(true);
@@ -125,7 +122,7 @@ class CustomerAccountTxnFlowIT {
 
         assertEquals(1, accounts.size());
         assertEquals("ACC-PL-00001", accounts.get(0).getAccountNumber());
-        assertEquals("ACTIVE", accounts.get(0).getStatus());
+        assertEquals(AccountStatus.ACTIVE, accounts.get(0).getStatus());
     }
 
     @Test
@@ -155,7 +152,7 @@ class CustomerAccountTxnFlowIT {
         txnRepository.save(buildTxn("TXN-SMALL", new BigDecimal("200.00"), "PL"));
 
         List<Txn> large = txnRepository.findByAmountUsdGreaterThanEqualAndStatus(
-                new BigDecimal("10000.00"), "COMPLETED");
+                new BigDecimal("10000.00"), TxnStatus.COMPLETED);
 
         assertEquals(1, large.size());
         assertEquals("TXN-BIG", large.get(0).getTxnRef());
@@ -260,14 +257,14 @@ class CustomerAccountTxnFlowIT {
     private Txn buildTxn(String ref, BigDecimal amountUsd, String counterpartyCountry) {
         Txn txn = new Txn();
         txn.setTxnRef(ref);
-        txn.setTxnType("WIRE");
-        txn.setDirection("DR");
+        txn.setTxnType(TxnType.WIRE);
+        txn.setDirection(TxnDirection.DR);
         txn.setAmount(amountUsd);
         txn.setCurrency("USD");
         txn.setAmountUsd(amountUsd);
         txn.setTxnDate(LocalDate.now());
         txn.setValueDate(LocalDate.now());
-        txn.setStatus("COMPLETED");
+        txn.setStatus(TxnStatus.COMPLETED);
         txn.setCounterpartyCountry(counterpartyCountry);
         txn.setAccount(account);
         return txn;

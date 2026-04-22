@@ -1,9 +1,9 @@
 package com.grad.sam.service;
 
-import com.grad.sam.enums.AlertStatus;
-import com.grad.sam.enums.InvestigationOutcome;
-import com.grad.sam.enums.InvestigationState;
-import com.grad.sam.enums.RiskRating;
+import com.grad.sam.enums.*;
+import com.grad.sam.exception.BusinessConflictException;
+import com.grad.sam.exception.DataNotFoundException;
+import com.grad.sam.exception.InvalidInputException;
 import com.grad.sam.model.*;
 import com.grad.sam.repository.AlertRepository;
 import com.grad.sam.repository.InvestigationRepository;
@@ -50,9 +50,9 @@ class InvestigationServiceTest {
         customer.setFullName("Ivan Petrov");
         customer.setNationality("RU");
         customer.setCountryOfResidence("RU");
-        customer.setCustomerType("INDIVIDUAL");
+        customer.setCustomerType(CustomerType.INDIVIDUAL);
         customer.setRiskRating(RiskRating.HIGH);
-        customer.setKycStatus("VERIFIED");
+        customer.setKycStatus(KycStatus.VERIFIED);
         customer.setOnboardedDate(LocalDate.now().minusYears(2));
         customer.setIsPep(true);
         customer.setIsActive(true);
@@ -60,9 +60,9 @@ class InvestigationServiceTest {
         account = new Account();
         account.setAccountId(10);
         account.setAccountNumber("ACC-0010");
-        account.setAccountType("CURRENT");
+        account.setAccountType(AccountType.CURRENT);
         account.setCurrency("USD");
-        account.setStatus("ACTIVE");
+        account.setStatus(AccountStatus.ACTIVE);
         account.setCustomer(customer);
 
         AlertRule alertRule = new AlertRule();
@@ -82,13 +82,46 @@ class InvestigationServiceTest {
     // openCase
 
     @Test
+    void openCase_generates_reference_and_persists_it_on_second_save() {
+        when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
+        when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
+
+        when(investigationRepository.save(any(Investigation.class)))
+                .thenAnswer(invocation -> {
+                    Investigation inv = invocation.getArgument(0);
+                    if (inv.getInvestigationId() == null) {
+                        inv.setInvestigationId(123);
+                    }
+                    return inv;
+                });
+
+        Investigation result = service.openCase(100, "officer@bank.com", Priority.HIGH);
+
+        assertNotNull(result);
+        assertEquals(123, result.getInvestigationId());
+        assertNotNull(result.getInvestigationRef());
+        assertTrue(result.getInvestigationRef().startsWith("INV"));
+        assertTrue(result.getInvestigationRef().endsWith("-00123"));
+
+        ArgumentCaptor<Investigation> captor = ArgumentCaptor.forClass(Investigation.class);
+        verify(investigationRepository, times(2)).save(captor.capture());
+
+        assertEquals(2, captor.getAllValues().size());
+
+        Investigation secondSave = captor.getAllValues().get(1);
+        assertNotNull(secondSave.getInvestigationRef());
+        assertTrue(secondSave.getInvestigationRef().startsWith("INV"));
+        assertTrue(secondSave.getInvestigationRef().endsWith("-00123"));
+    }
+
+    @Test
     void openCase_creates_investigation_and_returns_it() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
         when(investigationRepository.save(any(Investigation.class)))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        Investigation result = service.openCase(100, "officer@bank.com", "HIGH");
+        Investigation result = service.openCase(100, "officer@bank.com", Priority.HIGH);
 
         assertNotNull(result);
         assertEquals(InvestigationState.OPEN, result.getState());
@@ -101,7 +134,7 @@ class InvestigationServiceTest {
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
         when(investigationRepository.save(any())).thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        service.openCase(100, "officer@bank.com", "URGENT");
+        service.openCase(100, "officer@bank.com", Priority.URGENT);
 
         ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
         verify(alertRepository).save(alertCaptor.capture());
@@ -110,7 +143,7 @@ class InvestigationServiceTest {
     }
 
     @Test
-    void openCase_defaults_priority_to_medium_when_null() {
+    void openCase_persists_explicit_priority_value() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
 
@@ -118,42 +151,39 @@ class InvestigationServiceTest {
         when(investigationRepository.save(captor.capture()))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        service.openCase(100, "officer@bank.com", null);
+        service.openCase(100, "officer@bank.com", Priority.MEDIUM);
 
-        assertEquals("MEDIUM", captor.getAllValues().get(0).getPriority());
+        assertEquals(Priority.MEDIUM, captor.getAllValues().get(0).getPriority());
     }
 
     @Test
-    void openCase_returns_null_when_alert_not_found() {
+    void openCase_throws_when_alert_not_found() {
         when(alertRepository.findById(999)).thenReturn(Optional.empty());
 
-        Investigation result = service.openCase(999, "officer@bank.com", "HIGH");
-
-        assertNull(result);
+        assertThrows(DataNotFoundException.class,
+                () -> service.openCase(999, "officer@bank.com", Priority.HIGH));
         verify(investigationRepository, never()).save(any());
     }
 
     @Test
-    void openCase_returns_null_when_investigation_already_exists() {
+    void openCase_throws_when_investigation_already_exists() {
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100))
                 .thenReturn(Optional.of(buildSavedInvestigation(InvestigationState.OPEN)));
 
-        Investigation result = service.openCase(100, "officer@bank.com", "HIGH");
-
-        assertNull(result);
+        assertThrows(BusinessConflictException.class,
+                () -> service.openCase(100, "officer@bank.com", Priority.HIGH));
         verify(investigationRepository, never()).save(any());
     }
 
     @Test
-    void openCase_returns_null_when_customer_is_null() {
+    void openCase_throws_when_customer_is_null() {
         account.setCustomer(null);
         when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
         when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
 
-        Investigation result = service.openCase(100, "officer@bank.com", "LOW");
-
-        assertNull(result);
+        assertThrows(IllegalStateException.class,
+                () -> service.openCase(100, "officer@bank.com", Priority.LOW));
         verify(investigationRepository, never()).save(any());
     }
 
@@ -166,7 +196,7 @@ class InvestigationServiceTest {
         when(investigationRepository.save(captor.capture()))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        service.openCase(100, "officer@bank.com", "MEDIUM");
+        service.openCase(100, "officer@bank.com", Priority.MEDIUM);
 
         assertNotNull(captor.getAllValues().get(0).getOpenedAt());
         assertTrue(captor.getAllValues().get(0).getOpenedAt().isBefore(LocalDateTime.now().plusSeconds(1)));
@@ -181,10 +211,21 @@ class InvestigationServiceTest {
         when(investigationRepository.save(captor.capture()))
                 .thenReturn(buildSavedInvestigation(InvestigationState.OPEN));
 
-        service.openCase(100, "officer@bank.com", "HIGH");
+        service.openCase(100, "officer@bank.com", Priority.HIGH);
 
         assertEquals(alert, captor.getAllValues().get(0).getAlert());
         assertEquals(customer, captor.getAllValues().get(0).getCustomer());
+    }
+
+    @Test
+    void openCase_throws_when_alert_account_is_null_current_behavior() {
+        alert.setAccount(null);
+
+        when(alertRepository.findById(100)).thenReturn(Optional.of(alert));
+        when(investigationRepository.findByAlert_AlertId(100)).thenReturn(Optional.empty());
+
+        assertThrows(NullPointerException.class,
+                () -> service.openCase(100, "officer@bank.com", Priority.HIGH));
     }
 
     // updateCaseStatus
@@ -232,6 +273,34 @@ class InvestigationServiceTest {
     }
 
     @Test
+    void updateCaseStatus_sets_alert_to_escalated_when_outcome_is_escalated() {
+        Investigation inv = buildSavedInvestigation(InvestigationState.UNDER_REVIEW);
+        inv.setAlert(alert);
+        when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
+        when(investigationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.updateCaseStatus(1, InvestigationState.CLOSED, InvestigationOutcome.ESCALATED, "Escalated.");
+
+        ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
+        verify(alertRepository).save(alertCaptor.capture());
+        assertEquals(AlertStatus.ESCALATED, alertCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void updateCaseStatus_sets_alert_to_under_review_when_outcome_is_monitoring() {
+        Investigation inv = buildSavedInvestigation(InvestigationState.UNDER_REVIEW);
+        inv.setAlert(alert);
+        when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
+        when(investigationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.updateCaseStatus(1, InvestigationState.CLOSED, InvestigationOutcome.MONITORING, "Monitor.");
+
+        ArgumentCaptor<Alert> alertCaptor = ArgumentCaptor.forClass(Alert.class);
+        verify(alertRepository).save(alertCaptor.capture());
+        assertEquals(AlertStatus.UNDER_REVIEW, alertCaptor.getValue().getStatus());
+    }
+
+    @Test
     void updateCaseStatus_sets_alert_to_closed_when_outcome_is_no_action() {
         Investigation inv = buildSavedInvestigation(InvestigationState.UNDER_REVIEW);
         inv.setAlert(alert);
@@ -246,45 +315,41 @@ class InvestigationServiceTest {
     }
 
     @Test
-    void updateCaseStatus_returns_null_when_investigation_not_found() {
+    void updateCaseStatus_throws_when_investigation_not_found() {
         when(investigationRepository.findById(999)).thenReturn(Optional.empty());
 
-        Investigation result = service.updateCaseStatus(999, InvestigationState.UNDER_REVIEW, null, null);
-
-        assertNull(result);
+        assertThrows(DataNotFoundException.class,
+                () -> service.updateCaseStatus(999, InvestigationState.UNDER_REVIEW, null, null));
     }
 
     @Test
-    void updateCaseStatus_returns_null_for_invalid_transition_open_to_closed() {
+    void updateCaseStatus_throws_for_invalid_transition_open_to_closed() {
         Investigation inv = buildSavedInvestigation(InvestigationState.OPEN);
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
 
-        Investigation result = service.updateCaseStatus(1, InvestigationState.CLOSED,
-                InvestigationOutcome.NO_ACTION, "Skipping review.");
-
-        assertNull(result);
+        assertThrows(BusinessConflictException.class,
+                () -> service.updateCaseStatus(1, InvestigationState.CLOSED,
+                        InvestigationOutcome.NO_ACTION, "Skipping review."));
         verify(investigationRepository, never()).save(any());
     }
 
     @Test
-    void updateCaseStatus_returns_null_when_already_closed() {
+    void updateCaseStatus_throws_when_already_closed() {
         Investigation inv = buildSavedInvestigation(InvestigationState.CLOSED);
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
 
-        Investigation result = service.updateCaseStatus(1, InvestigationState.OPEN, null, null);
-
-        assertNull(result);
+        assertThrows(BusinessConflictException.class,
+                () -> service.updateCaseStatus(1, InvestigationState.OPEN, null, null));
         verify(investigationRepository, never()).save(any());
     }
 
     @Test
-    void updateCaseStatus_returns_null_when_closing_without_outcome() {
+    void updateCaseStatus_throws_when_closing_without_outcome() {
         Investigation inv = buildSavedInvestigation(InvestigationState.UNDER_REVIEW);
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
 
-        Investigation result = service.updateCaseStatus(1, InvestigationState.CLOSED, null, "No outcome.");
-
-        assertNull(result);
+        assertThrows(InvalidInputException.class,
+                () -> service.updateCaseStatus(1, InvestigationState.CLOSED, null, "No outcome."));
         verify(investigationRepository, never()).save(any());
     }
 
@@ -296,23 +361,21 @@ class InvestigationServiceTest {
         when(investigationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         Investigation result = service.updateCaseStatus(1, InvestigationState.CLOSED,
-                InvestigationOutcome.MONITORING, null);
+                InvestigationOutcome.MONITORING, "Ongoing monitoring required.");
 
         assertNotNull(result.getClosedAt());
     }
 
     @Test
-    void updateCaseStatus_does_not_overwrite_findings_with_blank() {
+    void updateCaseStatus_throws_when_closing_with_blank_findings() {
         Investigation inv = buildSavedInvestigation(InvestigationState.UNDER_REVIEW);
         inv.setAlert(alert);
-        inv.setFindings("Existing finding note.");
         when(investigationRepository.findById(1)).thenReturn(Optional.of(inv));
-        when(investigationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Investigation result = service.updateCaseStatus(1, InvestigationState.CLOSED,
-                InvestigationOutcome.NO_ACTION, "  ");
-
-        assertEquals("Existing finding note.", result.getFindings());
+        assertThrows(InvalidInputException.class,
+                () -> service.updateCaseStatus(1, InvestigationState.CLOSED,
+                        InvestigationOutcome.NO_ACTION, "  "));
+        verify(investigationRepository, never()).save(any());
     }
 
     // All valid outcomes are handled on close
@@ -332,7 +395,7 @@ class InvestigationServiceTest {
         assertEquals(outcome, result.getOutcome());
     }
 
-    // ── Query helpers ─────────────────────────────────────────────────────────
+    // Query helpers
 
     @Test
     void findOpenCases_delegates_to_repository() {
@@ -378,26 +441,27 @@ class InvestigationServiceTest {
     }
 
     @Test
-    void findByRef_returns_null_when_not_found() {
+    void findByRef_throws_when_not_found() {
         when(investigationRepository.findByInvestigationRef("INV-UNKNOWN"))
                 .thenReturn(Optional.empty());
 
-        Investigation result = service.findByRef("INV-UNKNOWN");
-
-        assertNull(result);
+        assertThrows(DataNotFoundException.class,
+                () -> service.findByRef("INV-UNKNOWN"));
     }
 
     // Helper methods
     private Investigation buildSavedInvestigation(InvestigationState state) {
+        return buildSavedInvestigation(state, "officer@bank.com", Priority.MEDIUM);
+    }
+
+    private Investigation buildSavedInvestigation(InvestigationState state, String openedBy, Priority priority) {
         Investigation inv = new Investigation();
         inv.setInvestigationId(1);
-        inv.setInvestigationRef("INV-260414-00001");
-        inv.setAlert(alert);
-        inv.setCustomer(customer);
-        inv.setOpenedBy("officer@bank.com");
-        inv.setOpenedAt(LocalDateTime.now());
-        inv.setPriority("HIGH");
+        inv.setInvestigationRef("INV-001");
         inv.setState(state);
+        inv.setOpenedBy(openedBy);
+        inv.setPriority(priority);
+        inv.setOpenedAt(LocalDateTime.now());
         return inv;
     }
 }

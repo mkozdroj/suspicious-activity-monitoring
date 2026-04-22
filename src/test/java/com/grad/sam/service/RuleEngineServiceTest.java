@@ -1,29 +1,22 @@
 package com.grad.sam.service;
 
-import com.grad.sam.dao.AlertRuleDao;
-import com.grad.sam.dao.TxnDao;
-import com.grad.sam.enums.AlertSeverity;
-import com.grad.sam.enums.RuleCategory;
-import com.grad.sam.model.Account;
-import com.grad.sam.model.AlertRule;
-import com.grad.sam.model.Txn;
+import com.grad.sam.enums.*;
+import com.grad.sam.model.*;
+import com.grad.sam.repository.AlertRuleRepository;
+import com.grad.sam.repository.TxnRepository;
 import com.grad.sam.rules.AmlRule;
 import com.grad.sam.rules.RuleContext;
 import com.grad.sam.rules.RuleMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.ActiveProfiles;
 
-import javax.sql.DataSource;
 import java.math.BigDecimal;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.Types;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,442 +28,429 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 class RuleEngineServiceTest {
 
-    @Mock private AlertRuleDao alertRuleDao;
-    @Mock private TxnDao txnDao;
-    @Mock private DataSource dataSource;
-
-    @Mock private Connection raiseAlertConnection;
-    @Mock private Connection screenTxnConnection;
-
-    @Mock private CallableStatement raiseAlertStatement;
-    @Mock private CallableStatement screenTxnStatement;
+    @Mock private AlertRuleRepository alertRuleRepository;
+    @Mock private TxnRepository txnRepository;
+    @Mock private TxnService txnService;
+    @Mock private AmlRule amlRule;
+    @Mock private WatchlistScreeningService watchlistScreeningService;
+    @Mock private AlertService alertService;
 
     private RuleEngineService service;
+
+    private Txn txn;
     private Account account;
-    private Txn currentTxn;
+    private Customer customer;
+    private AlertRule activeRule;
 
     @BeforeEach
     void setUp() {
+        service = new RuleEngineService(
+                alertRuleRepository,
+                txnRepository,
+                txnService,
+                List.of(amlRule),
+                watchlistScreeningService,
+                alertService
+        );
+
+        customer = new Customer();
+        customer.setCustomerId(1);
+        customer.setFullName("Ivan Petrov");
+
         account = new Account();
-        account.setAccountId(1);
-        account.setAccountNumber("ACC-TEST");
+        account.setAccountId(10);
+        account.setAccountNumber("ACC-0010");
+        account.setCurrency("USD");
+        account.setCustomer(customer);
 
-        currentTxn = new Txn();
-        currentTxn.setTxnId(42);
-        currentTxn.setTxnRef("TXN-TEST-001");
-        currentTxn.setAmountUsd(new BigDecimal("15000.00"));
-        currentTxn.setAmount(new BigDecimal("15000.00"));
-        currentTxn.setCurrency("USD");
-        currentTxn.setStatus("COMPLETED");
+        txn = new Txn();
+        txn.setTxnId(42);
+        txn.setTxnRef("TXN-TEST-001");
+        txn.setAmountUsd(new BigDecimal("15000.00"));
+        txn.setAccount(account);
+
+        activeRule = buildRule(1, "STR-001", RuleCategory.STRUCTURING, 30);
+        stubSupports(amlRule, "STR-");
     }
 
+
+    // screenTransaction — happy paths
+
     @Test
-    void returns_alert_id_when_rule_fires() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
+    void screenTransaction_returns_alert_id_when_single_rule_fires() {
+        Alert alert = buildAlert(1, "ALT-001");
+        RuleMatch match = new RuleMatch(activeRule, "Structuring pattern detected");
 
-        AlertRule activeRule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        AmlRule mockImpl = mockRuleThatFires(RuleCategory.VELOCITY, activeRule, "Large txn detected");
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(eq(10), eq(42), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(RuleContext.class), eq(activeRule))).thenReturn(Optional.of(match));
+        when(alertService.createAlert(txn, account, activeRule, "Structuring pattern detected")).thenReturn(alert);
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(activeRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(99L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(mockImpl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
+        List<Long> result = service.screenTransaction(txn, account);
 
         assertEquals(1, result.size());
-        assertEquals(99L, result.get(0));
+        assertEquals(1L, result.get(0));
     }
 
     @Test
-    void raises_alert_via_raise_alert_stored_proc() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
+    void screenTransaction_returns_multiple_alert_ids_when_multiple_rules_fire() {
+        AlertRule secondRule = buildRule(2, "VEL-001", RuleCategory.VELOCITY, 7);
+        AmlRule velocityImpl = mock(AmlRule.class);
+        stubSupports(velocityImpl, "VEL-");
 
-        AlertRule activeRule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        AmlRule mockImpl = mockRuleThatFires(RuleCategory.VELOCITY, activeRule, "Large txn");
+        service = new RuleEngineService(
+                alertRuleRepository, txnRepository, txnService,
+                List.of(amlRule, velocityImpl),
+                watchlistScreeningService, alertService
+        );
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(activeRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(99L);
+        RuleMatch match1 = new RuleMatch(activeRule, "Structuring pattern detected");
+        RuleMatch match2 = new RuleMatch(secondRule, "High velocity");
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(mockImpl));
+        Alert alert1 = buildAlert(1, "ALT-001");
+        Alert alert2 = buildAlert(2, "ALT-002");
 
-        service.screenTransaction(currentTxn, account);
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule, secondRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(), eq(activeRule))).thenReturn(Optional.of(match1));
+        when(velocityImpl.evaluate(any(), eq(secondRule))).thenReturn(Optional.of(match2));
+        when(alertService.createAlert(txn, account, activeRule, "Structuring pattern detected")).thenReturn(alert1);
+        when(alertService.createAlert(txn, account, secondRule, "High velocity")).thenReturn(alert2);
 
-        verify(raiseAlertConnection).prepareCall("{CALL raise_alert(?, ?, ?, ?)}");
-        verify(raiseAlertStatement).setInt(1, 42);
-        verify(raiseAlertStatement).setInt(2, 1);
-        verify(raiseAlertStatement).setString(3, "Large txn");
-        verify(raiseAlertStatement).registerOutParameter(4, Types.BIGINT);
-        verify(raiseAlertStatement).execute();
-    }
-
-    @Test
-    void calls_screen_transaction_proc_after_evaluation() throws Exception {
-        stubScreenTransactionOnly();
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
-
-        service.screenTransaction(currentTxn, account);
-
-        verify(screenTxnConnection).prepareCall("{CALL screen_transaction(?)}");
-        verify(screenTxnStatement).setInt(1, 42);
-        verify(screenTxnStatement).execute();
-    }
-
-    @Test
-    void returns_empty_list_when_no_active_rules() throws Exception {
-        stubScreenTransactionOnly();
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void skips_rule_with_no_matching_implementation() throws Exception {
-        stubScreenTransactionOnly();
-
-        AlertRule unknownCategoryRule = buildAlertRule(2, "SMU-001", RuleCategory.SMURFING, 30);
-        AmlRule velocityOnlyImpl = mockRuleImplCategoryOnly(RuleCategory.VELOCITY);
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(unknownCategoryRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(velocityOnlyImpl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void skips_rule_that_throws_exception_and_continues() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
-
-        AlertRule badRule = buildAlertRule(3, "BAD-001", RuleCategory.STRUCTURING, 30);
-        AlertRule goodRule = buildAlertRule(4, "GEO-001", RuleCategory.GEOGRAPHY, 30);
-
-        AmlRule faultyImpl = mock(AmlRule.class);
-        when(faultyImpl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
-        when(faultyImpl.evaluate(any(RuleContext.class), eq(badRule)))
-                .thenThrow(new RuntimeException("Simulated rule crash"));
-
-        AmlRule goodImpl = mockRuleThatFires(RuleCategory.GEOGRAPHY, goodRule, "High-risk country");
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(badRule, goodRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(55L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(faultyImpl, goodImpl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertEquals(1, result.size());
-        assertEquals(55L, result.get(0));
-    }
-
-    @Test
-    void returns_empty_list_when_raise_alert_proc_fails() throws Exception {
-        AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Large txn");
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(dataSource.getConnection()).thenThrow(new RuntimeException("DB failure"));
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void skips_rule_when_category_is_null() throws Exception {
-        stubScreenTransactionOnly();
-
-        AlertRule rule = buildAlertRule(1, "NO-CAT", RuleCategory.VELOCITY, 30);
-        rule.setRuleCategory(null);
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void uses_max_lookback_from_active_rules() throws Exception {
-        stubScreenTransactionOnly();
-
-        AlertRule rule1 = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 7);
-        AlertRule rule2 = buildAlertRule(2, "GEO-001", RuleCategory.GEOGRAPHY, 45);
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule1, rule2));
-        when(txnDao.findRecentByAccount(1, 42, 45)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of());
-
-        service.screenTransaction(currentTxn, account);
-
-        verify(txnDao).findRecentByAccount(1, 42, 45);
-    }
-
-    @Test
-    void uses_default_lookback_when_rule_lookback_is_null() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
-
-        AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        rule.setLookbackDays(null);
-
-        AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Large txn");
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(99L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        service.screenTransaction(currentTxn, account);
-
-        verify(txnDao).findRecentByAccount(1, 42, 30);
-    }
-
-    @Test
-    void returns_multiple_alert_ids_when_multiple_rules_fire() throws Exception {
-        stubTwoRaiseAlertsAndScreenTransaction();
-
-        AlertRule rule1 = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        AlertRule rule2 = buildAlertRule(2, "GEO-001", RuleCategory.GEOGRAPHY, 30);
-
-        AmlRule impl1 = mockRuleThatFires(RuleCategory.VELOCITY, rule1, "Large txn");
-        AmlRule impl2 = mockRuleThatFires(RuleCategory.GEOGRAPHY, rule2, "High-risk country");
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule1, rule2));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(101L, 102L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl1, impl2));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
+        List<Long> result = service.screenTransaction(txn, account);
 
         assertEquals(2, result.size());
-        assertEquals(List.of(101L, 102L), result);
+        assertTrue(result.containsAll(List.of(1L, 2L)));
     }
 
     @Test
-    void returns_empty_list_when_rule_does_not_fire() throws Exception {
-        stubScreenTransactionOnly();
+    void screenTransaction_returns_empty_list_when_no_active_rules() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
 
-        AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-
-        AmlRule impl = mock(AmlRule.class);
-        when(impl.getSupportedCategory()).thenReturn(RuleCategory.VELOCITY.name());
-        when(impl.evaluate(any(RuleContext.class), eq(rule))).thenReturn(Optional.empty());
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
+        List<Long> result = service.screenTransaction(txn, account);
 
         assertTrue(result.isEmpty());
-        verify(raiseAlertConnection, never()).prepareCall(anyString());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
     }
 
     @Test
-    void excludes_negative_alert_id_from_results() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
+    void screenTransaction_returns_empty_list_when_no_rules_match() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(RuleContext.class), eq(activeRule))).thenReturn(Optional.empty());
 
-        AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, "Duplicate alert");
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(-1L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
+        List<Long> result = service.screenTransaction(txn, account);
 
         assertTrue(result.isEmpty());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
+    }
+
+    // screenTransaction — transaction status
+
+    @Test
+    void screenTransaction_marks_txn_as_screened_when_rules_fire() {
+        RuleMatch match = new RuleMatch(activeRule, "Structuring pattern detected");
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(), eq(activeRule))).thenReturn(Optional.of(match));
+        when(alertService.createAlert(any(), any(), any(), any())).thenReturn(buildAlert(1, "ALT-001"));
+
+        service.screenTransaction(txn, account);
+
+        verify(txnService).updateTxnStatus(42, TxnStatus.SCREENED);
     }
 
     @Test
-    void truncates_notes_longer_than_500_chars() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
+    void screenTransaction_marks_txn_as_screened_even_when_no_rules_fire() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(), eq(activeRule))).thenReturn(Optional.empty());
 
-        AlertRule rule = buildAlertRule(1, "VEL-001", RuleCategory.VELOCITY, 30);
-        String longReason = "x".repeat(600);
+        service.screenTransaction(txn, account);
 
-        AmlRule impl = mockRuleThatFires(RuleCategory.VELOCITY, rule, longReason);
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(88L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        service.screenTransaction(currentTxn, account);
-
-        verify(raiseAlertStatement).setString(eq(3), argThat(note ->
-                note != null && note.length() == 500 && note.endsWith("...")
-        ));
+        verify(txnService).updateTxnStatus(42, TxnStatus.SCREENED);
     }
-
-    // ── Parameterised AML category tests ─────────────────────────────────────
-
-    @ParameterizedTest
-    @EnumSource(value = RuleCategory.class, names = {"STRUCTURING", "SMURFING", "VELOCITY", "GEOGRAPHY", "WATCHLIST", "PATTERN"})
-    void fires_alert_for_each_aml_rule_category(RuleCategory category) throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
-
-        AlertRule rule = buildAlertRule(10, category.name() + "-001", category, 30);
-        AmlRule impl = mockRuleThatFires(category, rule, "AML hit: " + category.name());
-
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(rule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(200L);
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertEquals(1, result.size(), "Expected alert for category: " + category);
-        assertEquals(200L, result.get(0));
-    }
-
-    // ── Inactive rule skipped ─────────────────────────────────────────────────
 
     @Test
-    void inactive_rule_is_never_evaluated() throws Exception {
-        stubScreenTransactionOnly();
+    void screenTransaction_marks_txn_as_screened_even_when_no_active_rules() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
 
-        // DAO returns only active rules — inactive ones are filtered out before reaching service
-        // This test verifies the service works correctly when DAO returns empty (all rules inactive)
-        AlertRule inactiveRule = buildAlertRule(99, "STR-INACTIVE", RuleCategory.STRUCTURING, 30);
-        inactiveRule.setIsActive(false);
+        service.screenTransaction(txn, account);
 
-        AmlRule impl = mock(AmlRule.class);
-        when(impl.getSupportedCategory()).thenReturn(RuleCategory.STRUCTURING.name());
-
-        // findActiveRules returns empty — inactive rule was filtered by the DAO/repository
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of());
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(impl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
-
-        assertTrue(result.isEmpty(), "Inactive rule should not generate any alert");
-        verify(impl, never()).evaluate(any(), any());
+        verify(txnService).updateTxnStatus(42, TxnStatus.SCREENED);
     }
 
-    // PEP / Watchlist hit scenario
+    // screenTransaction — watchlist screening
 
     @Test
-    void pep_watchlist_hit_raises_alert_with_correct_rule_and_reason() throws Exception {
-        stubOneRaiseAlertAndScreenTransaction();
+    void screenTransaction_calls_watchlist_screening_with_customer_name_and_fuzzy_score() throws Exception {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
 
-        // Simulate a transaction by a PEP customer hitting a watchlist entry
-        currentTxn.setCounterpartyCountry("KP"); // North Korea — sanctioned
-        currentTxn.setAmountUsd(new BigDecimal("75000.00"));
+        service.screenTransaction(txn, account);
 
-        AlertRule watchlistRule = buildAlertRule(20, "WL-PEP-001", RuleCategory.WATCHLIST, 30);
-        watchlistRule.setSeverity(AlertSeverity.CRITICAL);
+        verify(watchlistScreeningService).screenCustomer(
+                "Ivan Petrov",
+                WatchlistScreeningService.FUZZY_MATCH_SCORE,
+                txn
+        );
+    }
 
-        String expectedReason = "PEP customer matched OFAC watchlist entry — counterparty in KP";
-        AmlRule watchlistImpl = mockRuleThatFires(RuleCategory.WATCHLIST, watchlistRule, expectedReason);
+    @Test
+    void screenTransaction_continues_and_returns_alerts_when_watchlist_screening_throws() throws Exception {
+        RuleMatch match = new RuleMatch(activeRule, "Structuring pattern detected");
 
-        when(alertRuleDao.findActiveRules()).thenReturn(List.of(watchlistRule));
-        when(txnDao.findRecentByAccount(1, 42, 30)).thenReturn(List.of());
-        when(raiseAlertStatement.getLong(4)).thenReturn(300L);
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(), eq(activeRule))).thenReturn(Optional.of(match));
+        when(alertService.createAlert(any(), any(), any(), any())).thenReturn(buildAlert(5, "ALT-005"));
+        doThrow(new RuntimeException("Watchlist service unavailable"))
+                .when(watchlistScreeningService).screenCustomer(any(), any(), any());
 
-        service = new RuleEngineService(alertRuleDao, txnDao, dataSource, List.of(watchlistImpl));
-
-        List<Long> result = service.screenTransaction(currentTxn, account);
+        List<Long> result = service.screenTransaction(txn, account);
 
         assertEquals(1, result.size());
-        assertEquals(300L, result.get(0));
-
-        // Verify the correct reason was passed to raise_alert stored procedure
-        verify(raiseAlertStatement).setString(3, expectedReason);
-        verify(raiseAlertStatement).setInt(2, 20); // correct rule ID
+        assertEquals(5L, result.get(0));
     }
 
-    private void stubScreenTransactionOnly() throws Exception {
-        when(dataSource.getConnection()).thenReturn(screenTxnConnection);
-        when(screenTxnConnection.prepareCall("{CALL screen_transaction(?)}"))
-                .thenReturn(screenTxnStatement);
+    @Test
+    void screenTransaction_skips_rule_when_no_implementation_supports_rule_code() {
+        AlertRule unsupportedRule = buildRule(4, "ZZZ-001", RuleCategory.STRUCTURING, 30);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(unsupportedRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
     }
 
-    private void stubOneRaiseAlertAndScreenTransaction() throws Exception {
-        when(dataSource.getConnection()).thenReturn(
-                raiseAlertConnection,
-                screenTxnConnection
+    @Test
+    void screenTransaction_throws_when_active_rules_query_returns_null() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(null);
+
+        assertThrows(IllegalStateException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_throws_when_recent_transactions_query_returns_null() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(null);
+
+        assertThrows(IllegalStateException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_continues_when_customer_name_is_missing_for_watchlist_screening() {
+        customer.setFullName("   ");
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(watchlistScreeningService, never()).screenCustomer(any(), any(), any());
+    }
+
+    @Test
+    void screenTransaction_throws_when_transaction_id_is_null() {
+        txn.setTxnId(null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    @Test
+    void screenTransaction_throws_when_account_id_is_null() {
+        account.setAccountId(null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.screenTransaction(txn, account));
+    }
+
+    // screenTransaction — lookback days
+
+    @Test
+    void screenTransaction_uses_max_lookback_days_across_all_rules() {
+        AlertRule shortLookback = buildRule(2, "VEL-001", RuleCategory.VELOCITY, 7);
+        AlertRule longLookback  = buildRule(3, "STR-001", RuleCategory.STRUCTURING, 90);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(shortLookback, longLookback));
+
+        service.screenTransaction(txn, account);
+
+        verify(txnRepository).findRecentByAccount(10, 42, 90);
+    }
+
+    @Test
+    void screenTransaction_defaults_lookback_to_30_when_rule_has_null_lookback() {
+        AlertRule noLookback = buildRule(2, "VEL-001", RuleCategory.VELOCITY, null);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(noLookback));
+
+        service.screenTransaction(txn, account);
+
+        verify(txnRepository).findRecentByAccount(10, 42, 30);
+    }
+
+    @Test
+    void screenTransaction_defaults_lookback_to_30_when_no_active_rules() {
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of());
+
+        service.screenTransaction(txn, account);
+
+        verify(txnRepository).findRecentByAccount(10, 42, 30);
+    }
+
+    // screenTransaction — RuleContext
+
+    @Test
+    void screenTransaction_passes_correct_context_to_rule_implementation() {
+        List<Txn> recentTxns = List.of(buildPreviousTxn(99));
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(10, 42, 30)).thenReturn(recentTxns);
+        when(amlRule.evaluate(any(RuleContext.class), eq(activeRule))).thenReturn(Optional.empty());
+
+        service.screenTransaction(txn, account);
+
+        ArgumentCaptor<RuleContext> contextCaptor = ArgumentCaptor.forClass(RuleContext.class);
+        verify(amlRule).evaluate(contextCaptor.capture(), eq(activeRule));
+
+        RuleContext captured = contextCaptor.getValue();
+        assertEquals(txn, captured.getTxn());
+        assertEquals(account, captured.getAccount());
+        assertEquals(recentTxns, captured.getRecentTxns());
+    }
+
+    // evaluateRule — resilience (tested via screenTransaction)
+
+    @Test
+    void screenTransaction_skips_rule_with_null_category() {
+        AlertRule nullCategoryRule = buildRule(2, "NULL-001", null, 30);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(nullCategoryRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
+    }
+
+    @Test
+    void screenTransaction_skips_rule_when_no_implementation_registered_for_category() {
+        // GEOGRAPHY has no AmlRule implementation registered in setUp()
+        AlertRule geoRule = buildRule(2, "GEO-001", RuleCategory.GEOGRAPHY, 30);
+
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(geoRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertTrue(result.isEmpty());
+        verify(alertService, never()).createAlert(any(), any(), any(), any());
+    }
+
+    @Test
+    void screenTransaction_skips_rule_and_continues_when_evaluation_throws() {
+        AlertRule throwingRule = buildRule(2, "STR-002", RuleCategory.STRUCTURING, 30);
+        AlertRule goodRule     = buildRule(3, "VEL-001", RuleCategory.VELOCITY, 30);
+        AmlRule velocityImpl   = mock(AmlRule.class);
+        stubSupports(velocityImpl, "VEL-");
+
+        service = new RuleEngineService(
+                alertRuleRepository, txnRepository, txnService,
+                List.of(amlRule, velocityImpl),
+                watchlistScreeningService, alertService
         );
 
-        when(raiseAlertConnection.prepareCall("{CALL raise_alert(?, ?, ?, ?)}"))
-                .thenReturn(raiseAlertStatement);
+        RuleMatch goodMatch = new RuleMatch(goodRule, "Velocity breach");
+        Alert alert = buildAlert(7, "ALT-007");
 
-        when(screenTxnConnection.prepareCall("{CALL screen_transaction(?)}"))
-                .thenReturn(screenTxnStatement);
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(throwingRule, goodRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(amlRule.evaluate(any(), eq(throwingRule)))
+                .thenThrow(new RuntimeException("Rule engine internal error"));
+        when(velocityImpl.evaluate(any(), eq(goodRule))).thenReturn(Optional.of(goodMatch));
+        when(alertService.createAlert(txn, account, goodRule, "Velocity breach")).thenReturn(alert);
+
+        List<Long> result = service.screenTransaction(txn, account);
+
+        assertEquals(1, result.size());
+        assertEquals(7L, result.get(0));
     }
 
-    private void stubTwoRaiseAlertsAndScreenTransaction() throws Exception {
-        when(dataSource.getConnection()).thenReturn(
-                raiseAlertConnection,
-                raiseAlertConnection,
-                screenTxnConnection
+    // Constructor — duplicate category registration
+
+    @Test
+    void constructor_keeps_first_rule_when_two_rules_share_the_same_category() {
+        AmlRule firstImpl  = mock(AmlRule.class);
+        AmlRule secondImpl = mock(AmlRule.class);
+        stubSupports(firstImpl, "STR-");
+        stubSupports(secondImpl, "STR-");
+
+        service = new RuleEngineService(
+                alertRuleRepository, txnRepository, txnService,
+                List.of(firstImpl, secondImpl),
+                watchlistScreeningService, alertService
         );
 
-        when(raiseAlertConnection.prepareCall("{CALL raise_alert(?, ?, ?, ?)}"))
-                .thenReturn(raiseAlertStatement);
+        RuleMatch match = new RuleMatch(activeRule, "Hit");
+        Alert alert = buildAlert(1, "ALT-001");
 
-        when(screenTxnConnection.prepareCall("{CALL screen_transaction(?)}"))
-                .thenReturn(screenTxnStatement);
+        when(alertRuleRepository.findByIsActiveTrue()).thenReturn(List.of(activeRule));
+        when(txnRepository.findRecentByAccount(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(firstImpl.evaluate(any(), eq(activeRule))).thenReturn(Optional.of(match));
+        when(alertService.createAlert(any(), any(), any(), any())).thenReturn(alert);
+
+        service.screenTransaction(txn, account);
+
+        verify(firstImpl).evaluate(any(), eq(activeRule));
+        verify(secondImpl, never()).evaluate(any(), any());
     }
 
-    private AlertRule buildAlertRule(int id, String code, RuleCategory category, int lookback) {
-        AlertRule r = new AlertRule();
-        r.setRuleId(id);
-        r.setRuleCode(code);
-        r.setRuleName(code);
-        r.setRuleCategory(category);
-        r.setDescription("Test rule");
-        r.setThresholdAmount(new BigDecimal("10000.00"));
-        r.setThresholdCount(10);
-        r.setLookbackDays(lookback);
-        r.setSeverity(AlertSeverity.HIGH);
-        r.setIsActive(true);
-        return r;
+    // Helpers
+
+    private AlertRule buildRule(int id, String code, RuleCategory category, Integer lookbackDays) {
+        AlertRule rule = new AlertRule();
+        rule.setRuleId(id);
+        rule.setRuleCode(code);
+        rule.setRuleName(code + " Rule");
+        rule.setRuleCategory(category);
+        rule.setDescription("Test rule: " + code);
+        rule.setSeverity(AlertSeverity.HIGH);
+        rule.setLookbackDays(lookbackDays);
+        rule.setIsActive(true);
+        return rule;
     }
 
-    private AmlRule mockRuleThatFires(RuleCategory category, AlertRule matchedRule, String reason) {
-        AmlRule impl = mock(AmlRule.class);
-        when(impl.getSupportedCategory()).thenReturn(category.name());
-        when(impl.evaluate(any(RuleContext.class), eq(matchedRule)))
-                .thenReturn(Optional.of(new RuleMatch(matchedRule, reason)));
-        return impl;
+    private Alert buildAlert(int id, String ref) {
+        Alert alert = new Alert();
+        alert.setAlertId(id);
+        alert.setAlertRef(ref);
+        alert.setAlertScore((short) 80);
+        alert.setStatus(AlertStatus.OPEN);
+        return alert;
     }
 
-    private AmlRule mockRuleImplCategoryOnly(RuleCategory category) {
-        AmlRule impl = mock(AmlRule.class);
-        when(impl.getSupportedCategory()).thenReturn(category.name());
-        return impl;
+    private Txn buildPreviousTxn(int id) {
+        Txn t = new Txn();
+        t.setTxnId(id);
+        t.setTxnRef("TXN-PREV-" + id);
+        t.setAmountUsd(new BigDecimal("5000.00"));
+        t.setTxnDate(LocalDate.now().minusDays(2));
+        return t;
+    }
+
+    private void stubSupports(AmlRule rule, String prefix) {
+        lenient().when(rule.supports(any(AlertRule.class))).thenAnswer(invocation -> {
+            AlertRule candidate = invocation.getArgument(0);
+            return candidate != null
+                    && candidate.getRuleCode() != null
+                    && candidate.getRuleCode().startsWith(prefix);
+        });
     }
 }
